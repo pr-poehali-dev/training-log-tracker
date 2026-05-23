@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Get attendance without auth",
+      "method": "GET",
+      "path": "/?section=attendance&date=2025-05-23",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Не авторизован"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

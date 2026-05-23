@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Get students without auth",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Не авторизован"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

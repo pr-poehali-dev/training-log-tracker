@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "Login as admin",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"username": "admin", "password": "admin123"},
+      "expectedStatus": 200,
+      "expectedBody": {"role": "admin"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login wrong password",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"username": "admin", "password": "wrong"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "Неверный логин или пароль"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
