@@ -39,7 +39,7 @@ export default function StudentsSection({ store }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="section-title">Ученики</h1>
         <Button onClick={() => { setEditStudent(null); setModalOpen(true); }}
-          className="gap-2 font-semibold" style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)" }}>
+          className="gap-2 font-semibold" style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
           <Icon name="Plus" size={16} /> Добавить
         </Button>
       </div>
@@ -65,7 +65,7 @@ export default function StudentsSection({ store }: Props) {
             setConfirm({ title: "Отметить всех", message: `Присутствие для ${filtered.length} учеников?`, action: () => {
               filtered.forEach(s => toggleAttendance(s.id, date, true));
             }});
-          }} style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+          }} style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
             ✅ Всех
           </Button>
         </div>
@@ -85,7 +85,7 @@ export default function StudentsSection({ store }: Props) {
           const here = isPresent(s.id, date);
           const paid = isPaid(s.id, currentMon);
           return (
-            <div key={s.id} className={`card-glass rounded-2xl overflow-hidden border-l-2 transition-all duration-200 hover:translate-y-[-1px] ${paid ? "border-l-[hsl(168,85%,50%)]" : "border-l-[hsl(0,72%,58%)]"}`}>
+            <div key={s.id} className={`card-glass rounded-2xl overflow-hidden border-l-2 transition-all duration-200 hover:translate-y-[-1px] ${paid ? "border-l-[hsl(142,71%,45%)]" : "border-l-[hsl(0,72%,58%)]"}`}>
               <div className="p-4 flex items-center gap-3 cursor-pointer" onClick={() => setInfoStudent(s)}>
                 <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center font-oswald text-base font-bold text-muted-foreground flex-shrink-0">
                   {ini(s.name)}
@@ -105,7 +105,7 @@ export default function StudentsSection({ store }: Props) {
                 </div>
               </div>
               <div className="flex border-t border-border/40">
-                <button className={`flex-1 py-2 text-xs font-semibold transition-colors ${here ? "text-muted-foreground hover:text-foreground" : "text-[hsl(168,85%,55%)] hover:bg-[hsla(168,85%,50%,0.1)]"}`}
+                <button className={`flex-1 py-2 text-xs font-semibold transition-colors ${here ? "text-muted-foreground hover:text-foreground" : "text-[hsl(0,72%,40%)] hover:bg-[hsl(0,72%,97%)]"}`}
                   onClick={() => here ? setConfirm({ title: "Снять посещение", message: s.name, action: () => toggleAttendance(s.id, date, false) }) : toggleAttendance(s.id, date, true)}>
                   {here ? "Снять ✓" : "✅ Посещение"}
                 </button>
@@ -124,7 +124,7 @@ export default function StudentsSection({ store }: Props) {
       {infoStudent && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setInfoStudent(null)}>
-          <div className="w-full max-w-lg bg-[hsl(220,18%,10%)] border border-border/60 rounded-t-3xl p-6 pb-8"
+          <div className="w-full max-w-lg bg-white border border-border/60 rounded-t-3xl p-6 pb-8"
             onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
             <h2 className="font-oswald text-xl tracking-wide neon-text-green mb-4">{infoStudent.name}</h2>
@@ -142,7 +142,7 @@ export default function StudentsSection({ store }: Props) {
               <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditStudent(infoStudent); setInfoStudent(null); setModalOpen(true); }}>
                 ✏️ Изменить
               </Button>
-              <Button size="sm" className="flex-1" style={{ background: "hsla(0,72%,58%,0.15)", color: "hsl(0,72%,65%)", border: "1px solid hsla(0,72%,58%,0.3)" }}
+              <Button size="sm" className="flex-1" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,40%)", border: "1px solid hsla(0,72%,42%,0.3)" }}
                 onClick={() => setConfirm({ title: "Удалить ученика", message: `Удалить "${infoStudent.name}"?`, action: () => { deleteStudent(infoStudent.id); setInfoStudent(null); } })}>
                 🗑️ Удалить
               </Button>

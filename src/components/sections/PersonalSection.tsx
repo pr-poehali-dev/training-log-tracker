@@ -44,7 +44,7 @@ export default function PersonalSection({ store }: Props) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="section-title">Персональные</h1>
-        <Button onClick={() => openModal()} style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+        <Button onClick={() => openModal()} style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
           <Icon name="Plus" size={16} className="mr-1" /> Добавить
         </Button>
       </div>
@@ -86,7 +86,7 @@ export default function PersonalSection({ store }: Props) {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: "hsl(220,15%,12%)" }}>
+              <tr style={{ background: "hsl(0,0%,96%)" }}>
                 <th className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Дата</th>
                 <th className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Ученик</th>
                 <th className="text-center px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Мин</th>
@@ -122,7 +122,7 @@ export default function PersonalSection({ store }: Props) {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
-        <DialogContent className="max-w-sm" style={{ background: "hsl(220,18%,10%)", border: "1px solid hsl(220,15%,20%)" }}>
+        <DialogContent className="max-w-sm" style={{ background: "#fff", border: "1px solid hsl(0,0%,88%)" }}>
           <DialogHeader>
             <DialogTitle className="font-oswald text-xl tracking-wide neon-text-green">
               {editSession ? "Редактировать" : "Новая тренировка"}
@@ -168,7 +168,7 @@ export default function PersonalSection({ store }: Props) {
             </div>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setModalOpen(false)} className="flex-1">Отмена</Button>
-              <Button onClick={save} className="flex-1" style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>Сохранить</Button>
+              <Button onClick={save} className="flex-1" style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>Сохранить</Button>
             </div>
           </div>
         </DialogContent>

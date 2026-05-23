@@ -27,7 +27,7 @@ export default function PaymentsSection({ store }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="section-title">Оплаты</h1>
         <Button size="sm" onClick={() => setConfirm({ title: "Отметить всех", message: `Оплата для ${filtered.length} учеников?`, action: () => filtered.forEach(s => togglePayment(s.id, month, true)) })}
-          style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+          style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
           💰 Все
         </Button>
       </div>
@@ -74,14 +74,14 @@ export default function PaymentsSection({ store }: Props) {
         }).map(s => {
           const paid = isPaid(s.id, month);
           return (
-            <div key={s.id} className={`card-glass rounded-xl p-3 flex items-center gap-3 border-l-2 ${paid ? "border-l-[hsl(168,85%,50%)]" : "border-l-[hsl(0,72%,58%)]"}`}>
+            <div key={s.id} className={`card-glass rounded-xl p-3 flex items-center gap-3 border-l-2 ${paid ? "border-l-[hsl(142,71%,45%)]" : "border-l-[hsl(0,72%,58%)]"}`}>
               <div className="flex-1">
                 <div className="font-semibold text-sm">{s.name}</div>
                 <div className="text-xs text-muted-foreground">{s.hall} · {s.fee} ₽</div>
               </div>
               <span className={paid ? "badge-paid" : "badge-overdue"}>{paid ? "✓ Оплачен" : "✗ Нет"}</span>
               <Button size="sm" variant="ghost"
-                style={paid ? { color: "hsl(215,20%,55%)", fontSize: 12 } : { color: "hsl(168,85%,55%)", fontSize: 12, fontWeight: 700 }}
+                style={paid ? { color: "hsl(215,20%,55%)", fontSize: 12 } : { color: "hsl(0,72%,40%)", fontSize: 12, fontWeight: 700 }}
                 onClick={() => paid
                   ? setConfirm({ title: "Снять оплату", message: s.name, action: () => togglePayment(s.id, month, false) })
                   : setConfirm({ title: "Отметить оплату", message: `${s.name} — ${s.fee} ₽?`, action: () => togglePayment(s.id, month, true) })}>

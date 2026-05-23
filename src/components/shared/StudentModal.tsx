@@ -21,7 +21,7 @@ export default function StudentModal({ open, student, onSave, onClose }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" style={{ background: "hsl(220,18%,10%)", border: "1px solid hsl(220,15%,20%)" }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" style={{ background: "#fff", border: "1px solid hsl(0,0%,88%)" }}>
         <DialogHeader>
           <DialogTitle className="font-oswald text-xl tracking-wide neon-text-green">
             {student ? `Редактировать: ${student.name}` : "Новый ученик"}
@@ -90,7 +90,7 @@ export default function StudentModal({ open, student, onSave, onClose }: Props) 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Отмена</Button>
             <Button onClick={() => { if (!form.name.trim()) return; onSave(form); onClose(); }}
-              className="flex-1" style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+              className="flex-1" style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
               Сохранить
             </Button>
           </div>

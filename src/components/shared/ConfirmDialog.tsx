@@ -13,7 +13,7 @@ interface Props {
 export default function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }: Props) {
   return (
     <Dialog open={open} onOpenChange={v => !v && onCancel()}>
-      <DialogContent className="max-w-sm" style={{ background: "hsl(220,18%,10%)", border: "1px solid hsl(220,15%,20%)" }}>
+      <DialogContent className="max-w-sm" style={{ background: "#fff", border: "1px solid hsl(0,0%,88%)" }}>
         <DialogHeader>
           <DialogTitle className="font-oswald text-lg tracking-wide">{title}</DialogTitle>
         </DialogHeader>
@@ -23,7 +23,7 @@ export default function ConfirmDialog({ open, title, message, onConfirm, onCance
           <Button
             onClick={onConfirm}
             className="flex-1"
-            style={danger ? { background: "hsl(0,72%,58%)", color: "#fff" } : { background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)" }}
+            style={{ background: "hsl(0,72%,40%)", color: "#fff" }}
           >
             Подтвердить
           </Button>

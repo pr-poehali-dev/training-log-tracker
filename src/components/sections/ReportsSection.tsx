@@ -125,7 +125,7 @@ export default function ReportsSection({ store }: Props) {
             <XAxis dataKey="month" tick={{ fill: "hsl(215,20%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: "hsl(215,20%,55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="visits" fill="hsl(168,85%,50%)" radius={[4, 4, 0, 0]} name="Посещений" />
+            <Bar dataKey="visits" fill="hsl(0,72%,40%)" radius={[4, 4, 0, 0]} name="Посещений" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -148,7 +148,7 @@ export default function ReportsSection({ store }: Props) {
       <div className="card-glass rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ background: "hsl(220,15%,12%)" }}>
+            <tr style={{ background: "hsl(0,0%,96%)" }}>
               <th className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Ученик</th>
               <th className="text-center px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Был/Всего</th>
               <th className="text-center px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider">Перс.</th>

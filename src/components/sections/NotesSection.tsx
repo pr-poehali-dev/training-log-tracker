@@ -39,7 +39,7 @@ export default function NotesSection({ store }: Props) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="section-title">Заметки</h1>
-        <Button onClick={() => openModal()} style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+        <Button onClick={() => openModal()} style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
           <Icon name="Plus" size={16} className="mr-1" /> Добавить
         </Button>
       </div>
@@ -55,7 +55,7 @@ export default function NotesSection({ store }: Props) {
             <div key={n.id} className={`card-glass rounded-2xl p-4 border-l-2 ${n.imp ? "border-l-[hsl(0,72%,58%)]" : "border-l-[hsl(220,15%,25%)]"}`}>
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  {n.imp && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "hsla(0,72%,58%,0.15)", color: "hsl(0,72%,65%)", border: "1px solid hsla(0,72%,58%,0.3)" }}>Важно</span>}
+                  {n.imp && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,40%)", border: "1px solid hsla(0,72%,42%,0.3)" }}>Важно</span>}
                   <h3 className="font-semibold text-sm">{n.ttl}</h3>
                 </div>
                 <span className="text-xs text-muted-foreground flex-shrink-0">{n.date}</span>
@@ -80,7 +80,7 @@ export default function NotesSection({ store }: Props) {
       )}
 
       <Dialog open={modalOpen} onOpenChange={v => !v && setModalOpen(false)}>
-        <DialogContent className="max-w-sm" style={{ background: "hsl(220,18%,10%)", border: "1px solid hsl(220,15%,20%)" }}>
+        <DialogContent className="max-w-sm" style={{ background: "#fff", border: "1px solid hsl(0,0%,88%)" }}>
           <DialogHeader>
             <DialogTitle className="font-oswald text-xl tracking-wide neon-text-green">
               {editNote ? "Редактировать" : "Новая заметка"}
@@ -106,7 +106,7 @@ export default function NotesSection({ store }: Props) {
             </label>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => setModalOpen(false)} className="flex-1">Отмена</Button>
-              <Button onClick={save} className="flex-1" style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>Сохранить</Button>
+              <Button onClick={save} className="flex-1" style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>Сохранить</Button>
             </div>
           </div>
         </DialogContent>

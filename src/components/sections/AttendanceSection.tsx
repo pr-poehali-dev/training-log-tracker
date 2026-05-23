@@ -26,7 +26,7 @@ export default function AttendanceSection({ store }: Props) {
         <h1 className="section-title">Посещения</h1>
         <div className="flex gap-2">
           <Button size="sm" onClick={() => setConfirm({ title: "Все присутствуют", message: `${filtered.length} учеников?`, action: () => filtered.forEach(s => toggleAttendance(s.id, date, true)) })}
-            style={{ background: "hsl(168,85%,50%)", color: "hsl(220,20%,6%)", fontWeight: 700 }}>
+            style={{ background: "hsl(0,72%,40%)", color: "#fff", fontWeight: 700 }}>
             ✅
           </Button>
           <Button size="sm" variant="outline" onClick={() => setConfirm({ title: "Все отсутствуют", message: `${filtered.length} учеников?`, action: () => filtered.forEach(s => toggleAttendance(s.id, date, false)) })}>
@@ -43,7 +43,7 @@ export default function AttendanceSection({ store }: Props) {
         </div>
         <div className="h-2 bg-secondary rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${filtered.length ? (presentCount / filtered.length * 100) : 0}%`, background: "hsl(168,85%,50%)" }} />
+            style={{ width: `${filtered.length ? (presentCount / filtered.length * 100) : 0}%`, background: "hsl(0,72%,40%)" }} />
         </div>
         <div className="text-xs text-muted-foreground mt-1">
           {filtered.length ? Math.round(presentCount / filtered.length * 100) : 0}% посещаемость
@@ -78,7 +78,7 @@ export default function AttendanceSection({ store }: Props) {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: "hsl(220,15%,12%)" }}>
+              <tr style={{ background: "hsl(0,0%,96%)" }}>
                 <th className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider font-semibold">Ученик</th>
                 <th className="text-left px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider font-semibold">Группа</th>
                 <th className="text-center px-4 py-3 text-xs text-muted-foreground uppercase tracking-wider font-semibold">Статус</th>
