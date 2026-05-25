@@ -35,7 +35,7 @@ export default function Index() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col font-golos" style={{ background: "hsl(0,0%,96%)" }}>
+    <div className="min-h-screen flex flex-col font-golos" style={{ background: "hsl(0,0%,96%)", backgroundImage: "url('https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png')", backgroundSize: "160px 160px", backgroundRepeat: "repeat", backgroundBlendMode: "multiply", }}>
 
       {/* HEADER */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
