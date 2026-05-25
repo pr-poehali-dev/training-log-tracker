@@ -39,26 +39,26 @@ export default function Index() {
       {/* Рандомный фоновый паттерн */}
       <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
         {[
-          { top: "3%",  left: "8%",   rotate: -15, size: 90  },
-          { top: "7%",  left: "55%",  rotate: 30,  size: 70  },
-          { top: "5%",  left: "82%",  rotate: -5,  size: 110 },
-          { top: "18%", left: "28%",  rotate: 20,  size: 80  },
-          { top: "22%", left: "70%",  rotate: -35, size: 95  },
-          { top: "32%", left: "5%",   rotate: 10,  size: 75  },
-          { top: "35%", left: "45%",  rotate: -20, size: 105 },
-          { top: "38%", left: "88%",  rotate: 25,  size: 65  },
-          { top: "50%", left: "18%",  rotate: -8,  size: 100 },
-          { top: "52%", left: "62%",  rotate: 40,  size: 80  },
-          { top: "62%", left: "35%",  rotate: -30, size: 90  },
-          { top: "65%", left: "80%",  rotate: 12,  size: 70  },
-          { top: "72%", left: "3%",   rotate: 22,  size: 85  },
-          { top: "75%", left: "52%",  rotate: -18, size: 110 },
-          { top: "82%", left: "25%",  rotate: 35,  size: 75  },
-          { top: "85%", left: "72%",  rotate: -10, size: 95  },
-          { top: "90%", left: "42%",  rotate: 15,  size: 65  },
-          { top: "93%", left: "90%",  rotate: -25, size: 80  },
+          { top: "2%",  left: "6%",   rotate: -15, size: 90,  src: "https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png" },
+          { top: "6%",  left: "52%",  rotate: 30,  size: 110, src: "https://cdn.poehali.dev/files/07a4428b-e82e-4e59-bf03-14afa55514ae.png" },
+          { top: "4%",  left: "80%",  rotate: -5,  size: 100, src: "https://cdn.poehali.dev/files/8f0cc038-087a-4a9d-b452-b476da31a2af.png" },
+          { top: "15%", left: "28%",  rotate: 20,  size: 120, src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/324ac3ec-ce2f-4eeb-8c74-f449168be6de.jpg" },
+          { top: "20%", left: "72%",  rotate: -35, size: 85,  src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/b2f614c0-1a35-403f-850a-c5b393010061.jpg" },
+          { top: "30%", left: "4%",   rotate: 10,  size: 100, src: "https://cdn.poehali.dev/files/8f0cc038-087a-4a9d-b452-b476da31a2af.png" },
+          { top: "33%", left: "44%",  rotate: -20, size: 90,  src: "https://cdn.poehali.dev/files/07a4428b-e82e-4e59-bf03-14afa55514ae.png" },
+          { top: "36%", left: "86%",  rotate: 25,  size: 80,  src: "https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png" },
+          { top: "48%", left: "18%",  rotate: -8,  size: 110, src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/324ac3ec-ce2f-4eeb-8c74-f449168be6de.jpg" },
+          { top: "50%", left: "62%",  rotate: 40,  size: 95,  src: "https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png" },
+          { top: "60%", left: "35%",  rotate: -30, size: 105, src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/b2f614c0-1a35-403f-850a-c5b393010061.jpg" },
+          { top: "63%", left: "80%",  rotate: 12,  size: 90,  src: "https://cdn.poehali.dev/files/8f0cc038-087a-4a9d-b452-b476da31a2af.png" },
+          { top: "70%", left: "2%",   rotate: 22,  size: 85,  src: "https://cdn.poehali.dev/files/07a4428b-e82e-4e59-bf03-14afa55514ae.png" },
+          { top: "74%", left: "52%",  rotate: -18, size: 100, src: "https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png" },
+          { top: "80%", left: "24%",  rotate: 35,  size: 115, src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/324ac3ec-ce2f-4eeb-8c74-f449168be6de.jpg" },
+          { top: "83%", left: "74%",  rotate: -10, size: 80,  src: "https://cdn.poehali.dev/files/8f0cc038-087a-4a9d-b452-b476da31a2af.png" },
+          { top: "89%", left: "42%",  rotate: 15,  size: 70,  src: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/b2f614c0-1a35-403f-850a-c5b393010061.jpg" },
+          { top: "92%", left: "88%",  rotate: -25, size: 95,  src: "https://cdn.poehali.dev/files/07a4428b-e82e-4e59-bf03-14afa55514ae.png" },
         ].map((item, i) => (
-          <img key={i} src="https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png"
+          <img key={i} src={item.src}
             alt="" style={{ position: "absolute", top: item.top, left: item.left, width: item.size, height: item.size, opacity: 0.06, transform: `rotate(${item.rotate}deg)`, objectFit: "contain" }} />
         ))}
       </div>
