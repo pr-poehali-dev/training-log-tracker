@@ -2,7 +2,7 @@ import json
 import os
 import psycopg2
 
-SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p10685360_training_log_tracker")
+S = os.environ.get("MAIN_DB_SCHEMA", "t_p10685360_training_log_tracker")
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -17,10 +17,6 @@ def ok(data):
 
 def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
-
-def get_user(cur, user_id):
-    cur.execute("SELECT id, role, hall FROM users WHERE id=%s", (user_id,))
-    return cur.fetchone()
 
 def handler(event: dict, context) -> dict:
     """CRUD учеников: тренер видит только своих, admin видит всех"""
@@ -40,13 +36,12 @@ def handler(event: dict, context) -> dict:
 
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute(f"SET search_path TO {SCHEMA}")
 
-    user = get_user(cur, user_id)
+    cur.execute(f"SELECT id, role, hall FROM {S}.users WHERE id=%s", (user_id,))
+    user = cur.fetchone()
     if not user:
         cur.close(); conn.close()
         return err("Пользователь не найден", 401)
-
     uid, role, hall = user
 
     # GET — список учеников
@@ -54,21 +49,21 @@ def handler(event: dict, context) -> dict:
         if role == "admin":
             trainer_filter = qs.get("trainer_id")
             if trainer_filter:
-                cur.execute("""
-                    SELECT s.*, u.full_name as trainer_name FROM students s
-                    JOIN users u ON u.id = s.trainer_id
+                cur.execute(f"""
+                    SELECT s.*, u.full_name as trainer_name FROM {S}.students s
+                    JOIN {S}.users u ON u.id = s.trainer_id
                     WHERE s.trainer_id=%s ORDER BY s.name
                 """, (trainer_filter,))
             else:
-                cur.execute("""
-                    SELECT s.*, u.full_name as trainer_name FROM students s
-                    JOIN users u ON u.id = s.trainer_id
+                cur.execute(f"""
+                    SELECT s.*, u.full_name as trainer_name FROM {S}.students s
+                    JOIN {S}.users u ON u.id = s.trainer_id
                     ORDER BY u.full_name, s.name
                 """)
         else:
-            cur.execute("""
-                SELECT s.*, u.full_name as trainer_name FROM students s
-                JOIN users u ON u.id = s.trainer_id
+            cur.execute(f"""
+                SELECT s.*, u.full_name as trainer_name FROM {S}.students s
+                JOIN {S}.users u ON u.id = s.trainer_id
                 WHERE s.trainer_id=%s ORDER BY s.name
             """, (uid,))
 
@@ -86,8 +81,8 @@ def handler(event: dict, context) -> dict:
         if not name:
             cur.close(); conn.close()
             return err("Имя обязательно")
-        cur.execute("""
-            INSERT INTO students (trainer_id, name, hall, grp, phone, iko, fee, lvl, cert, cert_from, cert_to)
+        cur.execute(f"""
+            INSERT INTO {S}.students (trainer_id, name, hall, grp, phone, iko, fee, lvl, cert, cert_from, cert_to)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
         """, (
             uid, name,
@@ -109,8 +104,7 @@ def handler(event: dict, context) -> dict:
         if not sid:
             cur.close(); conn.close()
             return err("Нет id")
-        # проверка владельца
-        cur.execute("SELECT trainer_id FROM students WHERE id=%s", (sid,))
+        cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s", (sid,))
         row = cur.fetchone()
         if not row:
             cur.close(); conn.close()
@@ -118,9 +112,8 @@ def handler(event: dict, context) -> dict:
         if role != "admin" and str(row[0]) != str(uid):
             cur.close(); conn.close()
             return err("Нет прав", 403)
-
-        cur.execute("""
-            UPDATE students SET name=%s, hall=%s, grp=%s, phone=%s, iko=%s,
+        cur.execute(f"""
+            UPDATE {S}.students SET name=%s, hall=%s, grp=%s, phone=%s, iko=%s,
             fee=%s, lvl=%s, cert=%s, cert_from=%s, cert_to=%s WHERE id=%s
         """, (
             body.get("name"), body.get("hall") or None, body.get("grp") or None,
@@ -140,7 +133,7 @@ def handler(event: dict, context) -> dict:
         if not sid:
             cur.close(); conn.close()
             return err("Нет id")
-        cur.execute("SELECT trainer_id FROM students WHERE id=%s", (sid,))
+        cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s", (sid,))
         row = cur.fetchone()
         if not row:
             cur.close(); conn.close()
@@ -148,12 +141,10 @@ def handler(event: dict, context) -> dict:
         if role != "admin" and str(row[0]) != str(uid):
             cur.close(); conn.close()
             return err("Нет прав", 403)
-        cur.execute("UPDATE students SET trainer_id=trainer_id WHERE id=%s", (sid,))
-        # soft approach: just mark deleted via separate flag or hard delete
-        cur.execute("DELETE FROM personal_sessions WHERE student_id=%s", (sid,))
-        cur.execute("DELETE FROM attendance WHERE student_id=%s", (sid,))
-        cur.execute("DELETE FROM payments WHERE student_id=%s", (sid,))
-        cur.execute("DELETE FROM students WHERE id=%s", (sid,))
+        cur.execute(f"DELETE FROM {S}.personal_sessions WHERE student_id=%s", (sid,))
+        cur.execute(f"DELETE FROM {S}.attendance WHERE student_id=%s", (sid,))
+        cur.execute(f"DELETE FROM {S}.payments WHERE student_id=%s", (sid,))
+        cur.execute(f"DELETE FROM {S}.students WHERE id=%s", (sid,))
         conn.commit()
         cur.close(); conn.close()
         return ok({"message": "Удалено"})

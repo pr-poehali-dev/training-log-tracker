@@ -2,7 +2,7 @@ import json
 import os
 import psycopg2
 
-SCHEMA = os.environ.get("MAIN_DB_SCHEMA", "t_p10685360_training_log_tracker")
+S = os.environ.get("MAIN_DB_SCHEMA", "t_p10685360_training_log_tracker")
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -19,7 +19,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """Отчёты. Тренер не видит выручку. Админ видит всё по всем тренерам."""
+    """Отчёты. Тренер не видит выручку. Админ видит всё."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -32,8 +32,8 @@ def handler(event: dict, context) -> dict:
 
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute(f"SET search_path TO {SCHEMA}")
-    cur.execute("SELECT id, role FROM users WHERE id=%s", (user_id,))
+
+    cur.execute(f"SELECT id, role FROM {S}.users WHERE id=%s", (user_id,))
     user = cur.fetchone()
     if not user:
         cur.close(); conn.close()
@@ -45,11 +45,9 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return err("Укажите month")
 
-    # Определяем фильтр по тренеру
     trainer_filter = qs.get("trainer_id") if role == "admin" else uid
 
-    # Статистика по ученикам
-    cur.execute("""
+    cur.execute(f"""
         SELECT
             s.id, s.name, s.hall, s.grp, s.fee,
             COALESCE(p.paid, FALSE) as paid,
@@ -58,11 +56,11 @@ def handler(event: dict, context) -> dict:
             COUNT(DISTINCT ps.id) as personal_count,
             COALESCE(SUM(CASE WHEN ps.paid THEN ps.cost ELSE 0 END), 0) as personal_revenue,
             u.full_name as trainer_name
-        FROM students s
-        LEFT JOIN payments p ON p.student_id=s.id AND p.month=%s
-        LEFT JOIN attendance a ON a.student_id=s.id AND to_char(a.date,'YYYY-MM')=%s
-        LEFT JOIN personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
-        JOIN users u ON u.id=s.trainer_id
+        FROM {S}.students s
+        LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
+        LEFT JOIN {S}.attendance a ON a.student_id=s.id AND to_char(a.date,'YYYY-MM')=%s
+        LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
+        JOIN {S}.users u ON u.id=s.trainer_id
         WHERE s.trainer_id=%s
         GROUP BY s.id, s.name, s.hall, s.grp, s.fee, p.paid, u.full_name
         ORDER BY s.name
@@ -74,18 +72,16 @@ def handler(event: dict, context) -> dict:
         row = dict(zip(cols, r))
         row["paid"] = bool(row["paid"])
         row["attendance_rate"] = (
-            round(row["present_count"] / row["total_days"] * 100)
-            if row["total_days"] else 0
+            round(int(row["present_count"]) / int(row["total_days"]) * 100)
+            if int(row["total_days"]) else 0
         )
         students.append(row)
 
-    # Сводная статистика
     subs_revenue = sum(s["fee"] for s in students if s["paid"])
-    pers_revenue = sum(s["personal_revenue"] for s in students)
+    pers_revenue = sum(int(s["personal_revenue"]) for s in students)
     total_students = len(students)
     paid_count = sum(1 for s in students if s["paid"])
 
-    # Для тренера НЕ возвращаем выручку
     summary = {
         "month": month,
         "total_students": total_students,
@@ -97,19 +93,18 @@ def handler(event: dict, context) -> dict:
         summary["pers_revenue"] = pers_revenue
         summary["total_revenue"] = subs_revenue + pers_revenue
 
-    # Если admin и нет trainer_filter — сводка по тренерам
     trainers_summary = []
     if role == "admin" and not qs.get("trainer_id"):
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 u.id, u.full_name, u.hall,
                 COUNT(DISTINCT s.id) as student_count,
-                COALESCE(SUM(CASE WHEN p.paid THEN s.fee ELSE 0 END),0) as subs_rev,
-                COALESCE(SUM(CASE WHEN ps.paid THEN ps.cost ELSE 0 END),0) as pers_rev
-            FROM users u
-            LEFT JOIN students s ON s.trainer_id=u.id
-            LEFT JOIN payments p ON p.student_id=s.id AND p.month=%s
-            LEFT JOIN personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
+                COALESCE(SUM(CASE WHEN p.paid THEN s.fee ELSE 0 END), 0) as subs_rev,
+                COALESCE(SUM(CASE WHEN ps.paid THEN ps.cost ELSE 0 END), 0) as pers_rev
+            FROM {S}.users u
+            LEFT JOIN {S}.students s ON s.trainer_id=u.id
+            LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
+            LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
             WHERE u.role='trainer'
             GROUP BY u.id, u.full_name, u.hall
             ORDER BY u.full_name
@@ -117,7 +112,9 @@ def handler(event: dict, context) -> dict:
         t_cols = [d[0] for d in cur.description]
         for r in cur.fetchall():
             t = dict(zip(t_cols, r))
-            t["total_rev"] = t["subs_rev"] + t["pers_rev"]
+            t["total_rev"] = int(t["subs_rev"]) + int(t["pers_rev"])
+            t["subs_rev"] = int(t["subs_rev"])
+            t["pers_rev"] = int(t["pers_rev"])
             trainers_summary.append(t)
 
     cur.close(); conn.close()
