@@ -7,7 +7,7 @@ import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, 
 
 const emptyForm = (user: AppUser) => ({
   name: "", hall: user.hall || "", grp: "", schedule: user.schedule || "",
-  phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "",
+  phone: "", iko: "", fee: 5000, lvl: "", cert: false, cert_from: "", cert_to: "",
 });
 
 // ─── STUDENTS ────────────────────────────────────────────────────────────────
