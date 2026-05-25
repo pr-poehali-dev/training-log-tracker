@@ -45,14 +45,14 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Введите логин и пароль")
         cur.execute(
-            f"SELECT id, username, role, full_name, hall FROM {S}.users WHERE username=%s AND password=%s",
+            f"SELECT id, username, role, full_name, hall, schedule FROM {S}.users WHERE username=%s AND password=%s",
             (username, password)
         )
         row = cur.fetchone()
         cur.close(); conn.close()
         if not row:
             return err("Неверный логин или пароль", 401)
-        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4]})
+        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4], "schedule": row[5]})
 
     # POST ?action=register  (только admin)
     if method == "POST" and action == "register":
@@ -65,6 +65,7 @@ def handler(event: dict, context) -> dict:
         password  = body.get("password", "").strip()
         full_name = body.get("full_name", "").strip()
         hall      = body.get("hall", "").strip()
+        schedule  = body.get("schedule", "").strip()
         if not username or not password or not full_name:
             cur.close(); conn.close()
             return err("Заполните все поля")
@@ -73,13 +74,13 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Логин уже занят")
         cur.execute(
-            f"INSERT INTO {S}.users (username, password, role, full_name, hall) VALUES (%s,%s,'trainer',%s,%s) RETURNING id",
-            (username, password, full_name, hall or None)
+            f"INSERT INTO {S}.users (username, password, role, full_name, hall, schedule) VALUES (%s,%s,'trainer',%s,%s,%s) RETURNING id",
+            (username, password, full_name, hall or None, schedule or None)
         )
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close(); conn.close()
-        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall})
+        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule})
 
     # GET ?action=trainers  (admin only)
     if method == "GET" and action == "trainers":
@@ -89,9 +90,9 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Нет прав", 403)
         cur.execute(
-            f"SELECT id, username, role, full_name, hall, created_at FROM {S}.users WHERE role='trainer' ORDER BY full_name"
+            f"SELECT id, username, role, full_name, hall, schedule, created_at FROM {S}.users WHERE role='trainer' ORDER BY full_name"
         )
-        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "created_at": str(r[5])} for r in cur.fetchall()]
+        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "created_at": str(r[6])} for r in cur.fetchall()]
         cur.close(); conn.close()
         return ok(trainers)
 

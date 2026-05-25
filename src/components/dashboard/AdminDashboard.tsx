@@ -25,7 +25,7 @@ function TrainersTab({ user }: { user: AppUser }) {
   const qc = useQueryClient();
   const { data: trainers = [], isLoading } = useQuery({ queryKey: ["trainers"], queryFn: () => authApi.trainers() });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "", full_name: "", hall: "" });
+  const [form, setForm] = useState({ username: "", password: "", full_name: "", hall: "", schedule: "" });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState<Set<number>>(new Set());
@@ -36,7 +36,7 @@ function TrainersTab({ user }: { user: AppUser }) {
       await authApi.register(form);
       qc.invalidateQueries({ queryKey: ["trainers"] });
       setShowForm(false);
-      setForm({ username: "", password: "", full_name: "", hall: "" });
+      setForm({ username: "", password: "", full_name: "", hall: "", schedule: "" });
     } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Ошибка"); }
     finally { setSaving(false); }
   };
@@ -69,7 +69,10 @@ function TrainersTab({ user }: { user: AppUser }) {
               <input className={inputCls} placeholder="Логин *" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} required />
               <input className={inputCls} type="password" placeholder="Пароль *" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
             </div>
-            <input className={inputCls} placeholder="Зал (необязательно)" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-2">
+              <input className={inputCls} placeholder="Зал (необязательно)" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
+              <input className={inputCls} placeholder="Время групп (напр. пн/ср/пт 18:00)" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
+            </div>
             {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
             <div className="flex gap-2"><OutlineBtn onClick={() => setShowForm(false)}>Отмена</OutlineBtn><PrimaryBtn type="submit" disabled={saving}>{saving ? "Сохранение..." : "Создать тренера"}</PrimaryBtn></div>
           </form>
@@ -83,6 +86,7 @@ function TrainersTab({ user }: { user: AppUser }) {
             <div className="flex-1">
               <div className="font-semibold text-sm">{t.full_name as string}</div>
               <div className="text-xs text-gray-400">@{t.username as string}{t.hall ? ` · ${t.hall}` : ""}</div>
+              {t.schedule && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Icon name="Clock" size={11} />{t.schedule as string}</div>}
               <div className="text-[10px] text-gray-300 mt-0.5">с {(t.created_at as string)?.slice(0, 10)}</div>
             </div>
             <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)}

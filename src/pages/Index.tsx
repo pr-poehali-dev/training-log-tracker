@@ -12,6 +12,7 @@ export interface AppUser {
   role: "admin" | "trainer";
   full_name: string;
   hall?: string;
+  schedule?: string;
 }
 
 export default function Index() {
@@ -49,7 +50,7 @@ export default function Index() {
             <div className="text-right hidden sm:block">
               <div className="text-xs font-semibold text-gray-700">{user.full_name}</div>
               <div className="text-[10px] text-gray-400">
-                {user.role === "admin" ? "Администратор" : `Тренер${user.hall ? ` · ${user.hall}` : ""}`}
+                {user.role === "admin" ? "Администратор" : `Тренер${user.hall ? ` · ${user.hall}` : ""}${user.schedule ? ` · ${user.schedule}` : ""}`}
               </div>
             </div>
             {user.role === "admin" && (
