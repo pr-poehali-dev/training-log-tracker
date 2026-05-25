@@ -4,6 +4,7 @@ import TrainerDashboard from "@/components/dashboard/TrainerDashboard";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import OfflineBanner from "@/components/shared/OfflineBanner";
+import InstallBanner from "@/components/shared/InstallBanner";
 
 export interface AppUser {
   id: number;
@@ -70,6 +71,7 @@ export default function Index() {
         </div>
       </header>
 
+      <InstallBanner />
       <OfflineBanner />
 
       {/* CONTENT */}
