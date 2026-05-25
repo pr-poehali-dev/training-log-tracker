@@ -68,7 +68,7 @@ export default function Index() {
           <img src="https://cdn.poehali.dev/files/9f3aac7e-73f8-48db-bf91-16853e8555d1.png"
             alt="IKO" className="h-5 object-contain brightness-0 invert opacity-90" />
           <span className="text-[10px] text-red-100/80 uppercase tracking-[2px] font-semibold font-oswald">
-            Ростовская обл. · Кюокушинкай · Журнал тренера
+            Ростовская обл. · Киокушинкай · Журнал тренера
           </span>
         </div>
       </header>

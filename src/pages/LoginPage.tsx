@@ -95,7 +95,7 @@ export default function LoginPage() {
       {/* Strip */}
       <div className="mt-6 px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-oswald"
         style={{ background: "hsl(0,72%,37%)", color: "rgba(255,255,255,0.8)" }}>
-        Ростовская обл. · Кюокушинкай карате-до
+        Ростовская обл. · Киокушинкай карате-до
       </div>
     </div>
   );
