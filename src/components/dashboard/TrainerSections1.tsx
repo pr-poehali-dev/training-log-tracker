@@ -49,7 +49,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const markAtt = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
-    try { await attendanceApi.mark({ student_id: sid, date, present: true }); qc.invalidateQueries({ queryKey: ["att-date"] }); }
+    try { await attendanceApi.mark({ student_id: sid, date, present: true }); qc.invalidateQueries({ queryKey: ["att-date"] }); qc.invalidateQueries({ queryKey: ["att-month"] }); }
     finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
   };
   const markPay = async (sid: number) => {
