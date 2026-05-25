@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/icon";
 import TrainerDashboard from "@/components/dashboard/TrainerDashboard";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
@@ -14,20 +13,19 @@ export interface AppUser {
 }
 
 export default function Index() {
-  const navigate = useNavigate();
   const [user, setUser] = useState<AppUser | null>(null);
   const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("iko_user");
-    if (!stored) { navigate("/login"); return; }
+    if (!stored) { window.location.href = "/login"; return; }
     try { setUser(JSON.parse(stored)); }
-    catch { navigate("/login"); }
-  }, [navigate]);
+    catch { window.location.href = "/login"; }
+  }, []);
 
   const logout = () => {
     localStorage.removeItem("iko_user");
-    navigate("/login");
+    window.location.href = "/login";
   };
 
   if (!user) return null;
