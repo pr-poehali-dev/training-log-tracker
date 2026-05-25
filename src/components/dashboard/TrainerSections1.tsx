@@ -13,7 +13,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const { data: payData = [] } = useQuery({ queryKey: ["pay-month", month, user.id], queryFn: () => paymentsApi.byMonth(month) });
 
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", hall: "", grp: "", schedule: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" });
+  const [form, setForm] = useState({ name: "", hall: user.hall || "", grp: "", schedule: user.schedule || "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" });
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<Set<number>>(new Set());
 
@@ -34,13 +34,18 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   };
   const addStudent = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
-    try { await studentsApi.create(form); qc.invalidateQueries({ queryKey: ["students"] }); setShowAdd(false); setForm({ name: "", hall: "", grp: "", schedule: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" }); }
+    try { await studentsApi.create(form); qc.invalidateQueries({ queryKey: ["students"] }); setShowAdd(false); setForm({ name: "", hall: user.hall || "", grp: "", schedule: user.schedule || "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" }); }
     finally { setSaving(false); }
   };
   const deleteStudent = async (id: number, name: string) => {
     if (!window.confirm(`Удалить "${name}"?`)) return;
     await studentsApi.remove(id); qc.invalidateQueries({ queryKey: ["students"] });
   };
+
+  const uniq = (field: string) => [...new Set((students as Record<string, unknown>[]).map(s => s[field] as string).filter(Boolean))];
+  const halls = uniq("hall");
+  const grps = uniq("grp");
+  const schedules = uniq("schedule");
 
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
@@ -92,12 +97,15 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       })}
 
       <BottomSheet open={showAdd} onClose={() => setShowAdd(false)} title="Новый ученик">
+        <datalist id="dl-halls">{halls.map(v => <option key={v} value={v} />)}</datalist>
+        <datalist id="dl-grps">{grps.map(v => <option key={v} value={v} />)}</datalist>
+        <datalist id="dl-schedules">{schedules.map(v => <option key={v} value={v} />)}</datalist>
         <form onSubmit={addStudent} className="flex flex-col gap-3">
           <input className={inputCls} placeholder="Имя *" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required />
           <div className="grid grid-cols-2 gap-2">
-            <input className={inputCls} placeholder="Зал" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
-            <input className={inputCls} placeholder="Группа" value={form.grp} onChange={e => setForm(p => ({ ...p, grp: e.target.value }))} />
-            <input className={inputCls} placeholder="Время группы (пн/ср 18:00)" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
+            <input className={inputCls} placeholder="Зал" list="dl-halls" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
+            <input className={inputCls} placeholder="Группа" list="dl-grps" value={form.grp} onChange={e => setForm(p => ({ ...p, grp: e.target.value }))} />
+            <input className={inputCls} placeholder="Время группы (пн/ср 18:00)" list="dl-schedules" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
             <input className={inputCls} placeholder="Телефон" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
             <input className={inputCls} placeholder="IKO карта" value={form.iko} onChange={e => setForm(p => ({ ...p, iko: e.target.value }))} />
             <input className={inputCls} placeholder="Абонемент ₽" type="number" value={form.fee} onChange={e => setForm(p => ({ ...p, fee: +e.target.value }))} />
