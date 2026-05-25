@@ -38,43 +38,36 @@ export default function Index() {
     <div className="min-h-screen flex flex-col font-golos" style={{ background: "hsl(0,0%,96%)" }}>
 
       {/* HEADER */}
-      <header className="sticky top-0 z-30 shadow-sm">
-
-        {/* Красная полоса-баннер с логотипом названия */}
-        <div className="flex items-center justify-between px-4 py-2" style={{ background: "hsl(0,72%,37%)" }}>
-          <div className="flex items-center gap-3 flex-1">
+      <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-3">
             <img src="https://cdn.poehali.dev/files/1fec5d10-7a6f-474c-9ffc-803e6e256c69.png"
-              alt="Эмблема" className="h-12 w-12 object-contain flex-shrink-0" />
-            <img src="https://cdn.poehali.dev/files/933d3a2d-bfbc-4200-ba9a-8fb9c1df2b69.png"
-              alt="Бранч Ли" className="h-10 object-contain flex-shrink-0 brightness-0 invert" />
+              alt="Эмблема" className="h-11 w-11 object-contain flex-shrink-0" />
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="text-right hidden sm:block">
+              <div className="text-xs font-semibold text-gray-700">{user.full_name}</div>
+              <div className="text-[10px] text-gray-400">
+                {user.role === "admin" ? "Администратор" : `Тренер${user.hall ? ` · ${user.hall}` : ""}${user.schedule ? ` · ${user.schedule}` : ""}`}
+              </div>
+            </div>
             {user.role === "admin" && (
-              <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-white/20 text-white">ADMIN</span>
+              <span className="badge-overdue text-[10px] px-2 py-0.5">ADMIN</span>
             )}
             <button onClick={() => setLogoutConfirm(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-white/70 hover:text-white transition-colors bg-white/10 hover:bg-white/20">
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors border border-gray-200 bg-gray-50 hover:bg-gray-100">
               <Icon name="LogOut" size={15} />
             </button>
           </div>
         </div>
 
-        {/* Белая строка с именем пользователя и подполосой IKO */}
-        <div className="bg-white border-b border-gray-200 flex items-center justify-between px-4 py-1.5">
-          <div className="flex items-center gap-2">
-            <img src="https://cdn.poehali.dev/files/9f3aac7e-73f8-48db-bf91-16853e8555d1.png"
-              alt="IKO" className="h-4 object-contain opacity-40" />
-            <span className="text-[10px] text-gray-400 uppercase tracking-[2px] font-semibold font-oswald">
-              Ростовская обл. · Киокушинкай · Журнал тренера
-            </span>
-          </div>
-          <div className="text-right hidden sm:block">
-            <div className="text-xs font-semibold text-gray-700">{user.full_name}</div>
-            <div className="text-[10px] text-gray-400">
-              {user.role === "admin" ? "Администратор" : `Тренер${user.hall ? ` · ${user.hall}` : ""}${user.schedule ? ` · ${user.schedule}` : ""}`}
-            </div>
-          </div>
+        <div className="flex items-center justify-center gap-3 px-4 py-1.5" style={{ background: "hsl(0,72%,37%)" }}>
+          <img src="https://cdn.poehali.dev/files/9f3aac7e-73f8-48db-bf91-16853e8555d1.png"
+            alt="IKO" className="h-5 object-contain brightness-0 invert opacity-90" />
+          <span className="text-[10px] text-red-100/80 uppercase tracking-[2px] font-semibold font-oswald">
+            Ростовская обл. · Киокушинкай · Журнал тренера
+          </span>
         </div>
       </header>
 
