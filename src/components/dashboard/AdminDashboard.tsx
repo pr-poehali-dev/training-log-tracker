@@ -29,6 +29,13 @@ function TrainersTab({ user }: { user: AppUser }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState<Set<number>>(new Set());
+  const [toggling, setToggling] = useState<Set<number>>(new Set());
+
+  const togglePerm = async (id: number) => {
+    setToggling(prev => new Set([...prev, id]));
+    try { await authApi.togglePermission(id); qc.invalidateQueries({ queryKey: ["trainers"] }); }
+    finally { setToggling(prev => { const n = new Set(prev); n.delete(id); return n; }); }
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setErr(""); setSaving(true);
@@ -81,16 +88,27 @@ function TrainersTab({ user }: { user: AppUser }) {
 
       <div className="flex flex-col gap-2">
         {(trainers as Record<string, unknown>[]).map(t => (
-          <div key={t.id as number} className="card-glass rounded-xl p-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center font-oswald font-bold text-gray-500">{ini(t.full_name as string)}</div>
-            <div className="flex-1">
+          <div key={t.id as number} className="card-glass rounded-xl p-3 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center font-oswald font-bold text-gray-500 flex-shrink-0">{ini(t.full_name as string)}</div>
+            <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">{t.full_name as string}</div>
               <div className="text-xs text-gray-400">@{t.username as string}{t.hall ? ` · ${t.hall}` : ""}</div>
               {t.schedule && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Icon name="Clock" size={11} />{t.schedule as string}</div>}
               <div className="text-[10px] text-gray-300 mt-0.5">с {(t.created_at as string)?.slice(0, 10)}</div>
+              <button
+                onClick={() => togglePerm(t.id as number)}
+                disabled={toggling.has(t.id as number)}
+                className="mt-2 flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 transition-all disabled:opacity-50"
+                style={{
+                  background: t.can_edit_journal ? "hsl(142,60%,93%)" : "hsl(0,0%,93%)",
+                  color: t.can_edit_journal ? "hsl(142,60%,30%)" : "hsl(0,0%,45%)",
+                }}>
+                <Icon name={t.can_edit_journal ? "ShieldCheck" : "ShieldOff"} size={12} />
+                {t.can_edit_journal ? "Может вносить данные" : "Только просмотр"}
+              </button>
             </div>
             <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)}
-              className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40">
+              className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 mt-1 flex-shrink-0">
               <Icon name="Trash2" size={16} />
             </button>
           </div>

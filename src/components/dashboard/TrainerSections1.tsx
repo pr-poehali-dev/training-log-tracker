@@ -47,17 +47,64 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const grps = uniq("grp");
   const schedules = uniq("schedule");
 
+  const canEdit = user.role === "admin" || user.can_edit_journal !== false;
+
+  const [search, setSearch] = useState("");
+  const [filterGrp, setFilterGrp] = useState("");
+  const [filterHall, setFilterHall] = useState("");
+
+  const filtered = (students as Record<string, unknown>[]).filter(s => {
+    const q = search.toLowerCase();
+    if (q && !(s.name as string)?.toLowerCase().includes(q)) return false;
+    if (filterGrp && s.grp !== filterGrp) return false;
+    if (filterHall && s.hall !== filterHall) return false;
+    return true;
+  });
+
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="section-title">Ученики</h1>
+        <h1 className="section-title">Ученики <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
         <PrimaryBtn onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
       </div>
-      {students.length === 0 && <div className="text-center py-12 text-gray-400"><Icon name="Users" size={40} className="mx-auto mb-2 opacity-30" /><p>Нет учеников</p></div>}
-      {(students as Record<string, unknown>[]).map(s => {
+
+      {/* Фильтры */}
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input className={`${inputCls} pl-8`} placeholder="Поиск по имени..." value={search} onChange={e => setSearch(e.target.value)} />
+          {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><Icon name="X" size={13} /></button>}
+        </div>
+        {(grps.length > 1 || halls.length > 1) && (
+          <div className="flex gap-2">
+            {grps.length > 1 && (
+              <select className={`${inputCls} flex-1`} value={filterGrp} onChange={e => setFilterGrp(e.target.value)}>
+                <option value="">Все группы</option>
+                {grps.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            )}
+            {halls.length > 1 && (
+              <select className={`${inputCls} flex-1`} value={filterHall} onChange={e => setFilterHall(e.target.value)}>
+                <option value="">Все залы</option>
+                {halls.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            )}
+          </div>
+        )}
+      </div>
+
+      {!canEdit && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700 font-semibold">
+          <Icon name="ShieldOff" size={13} />
+          Просмотр — внесение данных заблокировано администратором
+        </div>
+      )}
+
+      {filtered.length === 0 && <div className="text-center py-12 text-gray-400"><Icon name="Users" size={40} className="mx-auto mb-2 opacity-30" /><p>{students.length === 0 ? "Нет учеников" : "Ничего не найдено"}</p></div>}
+      {filtered.map(s => {
         const sid = s.id as number;
         const here = isPresent(sid);
         const paid = isPaid(sid);
@@ -83,13 +130,19 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
             </div>
             <div className="flex border-t border-gray-100">
               <div className="flex-1 py-2 text-center">
-                {here ? <span className="text-xs text-green-600 font-semibold">✓ Посещение отмечено</span>
-                  : <button disabled={t} onClick={() => markAtt(sid)} className="text-xs font-semibold transition-colors" style={{ color: "hsl(0,72%,40%)" }}>{t ? "..." : "✅ Отметить"}</button>}
+                {here
+                  ? <span className="text-xs text-green-600 font-semibold">✓ Посещение отмечено</span>
+                  : canEdit
+                    ? <button disabled={t} onClick={() => markAtt(sid)} className="text-xs font-semibold transition-colors" style={{ color: "hsl(0,72%,40%)" }}>{t ? "..." : "✅ Отметить"}</button>
+                    : <span className="text-xs text-gray-300">—</span>}
               </div>
               <div className="w-px bg-gray-100" />
               <div className="flex-1 py-2 text-center">
-                {paid ? <span className="text-xs text-green-600 font-semibold">✓ Оплата отмечена</span>
-                  : <button disabled={t} onClick={() => markPay(sid)} className="text-xs font-semibold" style={{ color: "hsl(28,85%,42%)" }}>{t ? "..." : "💰 Оплатить"}</button>}
+                {paid
+                  ? <span className="text-xs text-green-600 font-semibold">✓ Оплата отмечена</span>
+                  : canEdit
+                    ? <button disabled={t} onClick={() => markPay(sid)} className="text-xs font-semibold" style={{ color: "hsl(28,85%,42%)" }}>{t ? "..." : "💰 Оплатить"}</button>
+                    : <span className="text-xs text-gray-300">—</span>}
               </div>
             </div>
           </div>

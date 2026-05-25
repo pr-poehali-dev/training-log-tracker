@@ -38,12 +38,12 @@ def handler(event: dict, context) -> dict:
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute(f"SELECT id, role FROM {S}.users WHERE id=%s", (user_id,))
+    cur.execute(f"SELECT id, role, can_edit_journal FROM {S}.users WHERE id=%s", (user_id,))
     user = cur.fetchone()
     if not user:
         cur.close(); conn.close()
         return err("Пользователь не найден", 401)
-    uid, role = user
+    uid, role, can_edit_journal = user
 
     # ──── ATTENDANCE ────────────────────────────────────────────
     if section == "attendance":
@@ -77,6 +77,10 @@ def handler(event: dict, context) -> dict:
             return ok(rows)
 
         if method == "POST":
+            if role == "trainer" and not can_edit_journal:
+                cur.close(); conn.close()
+                return err("Нет разрешения на редактирование журнала", 403)
+
             student_id = body.get("student_id")
             date       = body.get("date")
             present    = bool(body.get("present", True))
@@ -141,6 +145,10 @@ def handler(event: dict, context) -> dict:
             return ok(rows)
 
         if method == "POST":
+            if role == "trainer" and not can_edit_journal:
+                cur.close(); conn.close()
+                return err("Нет разрешения на редактирование журнала", 403)
+
             student_id = body.get("student_id")
             month      = body.get("month")
             paid       = bool(body.get("paid", True))

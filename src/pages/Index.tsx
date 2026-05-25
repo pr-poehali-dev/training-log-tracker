@@ -13,6 +13,7 @@ export interface AppUser {
   full_name: string;
   hall?: string;
   schedule?: string;
+  can_edit_journal?: boolean;
 }
 
 export default function Index() {

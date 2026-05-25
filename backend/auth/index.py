@@ -20,7 +20,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """Auth: action=login|register|trainers через ?action=..."""
+    """Auth: action=login|register|trainers|toggle_permission через ?action=..."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -45,14 +45,14 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Введите логин и пароль")
         cur.execute(
-            f"SELECT id, username, role, full_name, hall, schedule FROM {S}.users WHERE username=%s AND password=%s",
+            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal FROM {S}.users WHERE username=%s AND password=%s",
             (username, password)
         )
         row = cur.fetchone()
         cur.close(); conn.close()
         if not row:
             return err("Неверный логин или пароль", 401)
-        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4], "schedule": row[5]})
+        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4], "schedule": row[5], "can_edit_journal": row[6]})
 
     # POST ?action=register  (только admin)
     if method == "POST" and action == "register":
@@ -74,13 +74,13 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Логин уже занят")
         cur.execute(
-            f"INSERT INTO {S}.users (username, password, role, full_name, hall, schedule) VALUES (%s,%s,'trainer',%s,%s,%s) RETURNING id",
+            f"INSERT INTO {S}.users (username, password, role, full_name, hall, schedule, can_edit_journal) VALUES (%s,%s,'trainer',%s,%s,%s,TRUE) RETURNING id",
             (username, password, full_name, hall or None, schedule or None)
         )
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close(); conn.close()
-        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule})
+        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule, "can_edit_journal": True})
 
     # GET ?action=trainers  (admin only)
     if method == "GET" and action == "trainers":
@@ -90,11 +90,33 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Нет прав", 403)
         cur.execute(
-            f"SELECT id, username, role, full_name, hall, schedule, created_at FROM {S}.users WHERE role='trainer' ORDER BY full_name"
+            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal, created_at FROM {S}.users WHERE role='trainer' ORDER BY full_name"
         )
-        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "created_at": str(r[6])} for r in cur.fetchall()]
+        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "can_edit_journal": r[6], "created_at": str(r[7])} for r in cur.fetchall()]
         cur.close(); conn.close()
         return ok(trainers)
+
+    # POST ?action=toggle_permission&id=X  (admin only)
+    if method == "POST" and action == "toggle_permission":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        tid = qs.get("id")
+        if not tid:
+            cur.close(); conn.close()
+            return err("Нет id")
+        cur.execute(f"SELECT can_edit_journal FROM {S}.users WHERE id=%s AND role='trainer'", (tid,))
+        row = cur.fetchone()
+        if not row:
+            cur.close(); conn.close()
+            return err("Тренер не найден", 404)
+        new_val = not row[0]
+        cur.execute(f"UPDATE {S}.users SET can_edit_journal=%s WHERE id=%s", (new_val, tid))
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"can_edit_journal": new_val})
 
     # DELETE ?action=delete_trainer&id=X  (admin only)
     if method == "DELETE" and action == "delete_trainer":

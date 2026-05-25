@@ -40,6 +40,9 @@ export const authApi = {
 
   deleteTrainer: (id: number) =>
     req(`${URLS.auth}?action=delete_trainer&id=${id}`, { method: "DELETE" }),
+
+  togglePermission: (id: number) =>
+    req(`${URLS.auth}?action=toggle_permission&id=${id}`, { method: "POST" }),
 };
 
 // ── STUDENTS ──────────────────────────────────────────────────
