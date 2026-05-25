@@ -1,3 +1,5 @@
+import { offlineGet, offlineMutate } from "./offlineApi";
+
 const URLS = {
   auth:     "https://functions.poehali.dev/d83b508f-5f51-4ba2-b5e0-df30b382e5e0",
   journal:  "https://functions.poehali.dev/34ed4bb5-c29f-4428-a47f-7e00a87d4b8b",
@@ -25,7 +27,7 @@ async function req(url: string, opts?: RequestInit) {
   return data;
 }
 
-// ── AUTH ──────────────────────────────────────────────────────
+// ── AUTH (всегда онлайн) ───────────────────────────────────────
 export const authApi = {
   login:   (body: { username: string; password: string }) =>
     req(`${URLS.auth}?action=login`, { method: "POST", body: JSON.stringify(body) }),
@@ -42,72 +44,105 @@ export const authApi = {
 
 // ── STUDENTS ──────────────────────────────────────────────────
 export const studentsApi = {
-  list: (trainerId?: number) =>
-    req(`${URLS.students}${trainerId ? `?trainer_id=${trainerId}` : ""}`),
+  list: (trainerId?: number) => {
+    const url = `${URLS.students}${trainerId ? `?trainer_id=${trainerId}` : ""}`;
+    const key = `students_${trainerId ?? "me"}`;
+    return offlineGet(url, key);
+  },
 
   create: (body: Record<string, unknown>) =>
-    req(URLS.students, { method: "POST", body: JSON.stringify(body) }),
+    offlineMutate(URLS.students, "POST", body, "students"),
 
   update: (id: number, body: Record<string, unknown>) =>
-    req(`${URLS.students}?id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    offlineMutate(`${URLS.students}?id=${id}`, "PUT", body, "students"),
 
   remove: (id: number) =>
-    req(`${URLS.students}?id=${id}`, { method: "DELETE" }),
+    offlineMutate(`${URLS.students}?id=${id}`, "DELETE", undefined, "students"),
 };
 
 // ── ATTENDANCE ────────────────────────────────────────────────
 export const attendanceApi = {
-  byDate:  (date: string, trainerId?: number) =>
-    req(`${URLS.journal}?section=attendance&date=${date}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
+  byDate: (date: string, trainerId?: number) => {
+    const url = `${URLS.journal}?section=attendance&date=${date}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `att_date_${date}_${trainerId ?? "me"}`);
+  },
 
-  byMonth: (month: string, trainerId?: number) =>
-    req(`${URLS.journal}?section=attendance&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
+  byMonth: (month: string, trainerId?: number) => {
+    const url = `${URLS.journal}?section=attendance&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `att_month_${month}_${trainerId ?? "me"}`);
+  },
 
   mark: (body: { student_id: number; date: string; present: boolean }) =>
-    req(`${URLS.journal}?section=attendance`, { method: "POST", body: JSON.stringify(body) }),
+    offlineMutate(
+      `${URLS.journal}?section=attendance`,
+      "POST",
+      body,
+      "att-date",
+      (cached: unknown) => {
+        const arr = (cached as Record<string, unknown>[]) || [];
+        const exists = arr.find(a => a.student_id === body.student_id && a.date === body.date);
+        if (exists) return arr.map(a => a.student_id === body.student_id && a.date === body.date ? { ...a, present: body.present } : a);
+        return [...arr, { student_id: body.student_id, date: body.date, present: body.present }];
+      },
+    ),
 };
 
 // ── PAYMENTS ──────────────────────────────────────────────────
 export const paymentsApi = {
-  byMonth: (month: string, trainerId?: number) =>
-    req(`${URLS.journal}?section=payments&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
+  byMonth: (month: string, trainerId?: number) => {
+    const url = `${URLS.journal}?section=payments&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `pay_month_${month}_${trainerId ?? "me"}`);
+  },
 
   mark: (body: { student_id: number; month: string; paid: boolean }) =>
-    req(`${URLS.journal}?section=payments`, { method: "POST", body: JSON.stringify(body) }),
+    offlineMutate(
+      `${URLS.journal}?section=payments`,
+      "POST",
+      body,
+      "pay-month",
+      (cached: unknown) => {
+        const arr = (cached as Record<string, unknown>[]) || [];
+        return arr.map(p => p.student_id === body.student_id ? { ...p, paid: body.paid } : p);
+      },
+    ),
 };
 
 // ── PERSONAL SESSIONS ─────────────────────────────────────────
 export const personalApi = {
-  byMonth: (month: string, trainerId?: number) =>
-    req(`${URLS.journal}?section=personal&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
+  byMonth: (month: string, trainerId?: number) => {
+    const url = `${URLS.journal}?section=personal&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `personal_${month}_${trainerId ?? "me"}`);
+  },
 
   create: (body: Record<string, unknown>) =>
-    req(`${URLS.journal}?section=personal`, { method: "POST", body: JSON.stringify(body) }),
+    offlineMutate(`${URLS.journal}?section=personal`, "POST", body, "personal"),
 
   update: (id: number, body: Record<string, unknown>) =>
-    req(`${URLS.journal}?section=personal&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    offlineMutate(`${URLS.journal}?section=personal&id=${id}`, "PUT", body, "personal"),
 
   remove: (id: number) =>
-    req(`${URLS.journal}?section=personal&id=${id}`, { method: "DELETE" }),
+    offlineMutate(`${URLS.journal}?section=personal&id=${id}`, "DELETE", undefined, "personal"),
 };
 
 // ── NOTES ─────────────────────────────────────────────────────
 export const notesApi = {
   list: () =>
-    req(`${URLS.journal}?section=notes`),
+    offlineGet(`${URLS.journal}?section=notes`, "notes_me"),
 
   create: (body: Record<string, unknown>) =>
-    req(`${URLS.journal}?section=notes`, { method: "POST", body: JSON.stringify(body) }),
+    offlineMutate(`${URLS.journal}?section=notes`, "POST", body, "notes"),
 
   update: (id: number, body: Record<string, unknown>) =>
-    req(`${URLS.journal}?section=notes&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    offlineMutate(`${URLS.journal}?section=notes&id=${id}`, "PUT", body, "notes"),
 
   remove: (id: number) =>
-    req(`${URLS.journal}?section=notes&id=${id}`, { method: "DELETE" }),
+    offlineMutate(`${URLS.journal}?section=notes&id=${id}`, "DELETE", undefined, "notes"),
 };
 
 // ── REPORTS ───────────────────────────────────────────────────
 export const reportsApi = {
-  get: (month: string, trainerId?: number) =>
-    req(`${URLS.reports}?month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
+  get: (month: string, trainerId?: number) => {
+    const url = `${URLS.reports}?month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `reports_${month}_${trainerId ?? "me"}`);
+  },
 };

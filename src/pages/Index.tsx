@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import TrainerDashboard from "@/components/dashboard/TrainerDashboard";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import OfflineBanner from "@/components/shared/OfflineBanner";
 
 export interface AppUser {
   id: number;
@@ -69,8 +70,10 @@ export default function Index() {
         </div>
       </header>
 
+      <OfflineBanner />
+
       {/* CONTENT */}
-      <main className="flex-1 max-w-2xl mx-auto w-full">
+      <main className="flex-1 w-full md:max-w-none max-w-2xl mx-auto">
         {user.role === "admin"
           ? <AdminDashboard user={user} />
           : <TrainerDashboard user={user} />}
