@@ -35,7 +35,34 @@ export default function Index() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col font-golos" style={{ background: "hsl(0,0%,96%)", backgroundImage: "url('https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png')", backgroundSize: "160px 160px", backgroundRepeat: "repeat", backgroundBlendMode: "multiply", }}>
+    <div className="min-h-screen flex flex-col font-golos" style={{ background: "hsl(0,0%,96%)", position: "relative" }}>
+      {/* Рандомный фоновый паттерн */}
+      <div aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+        {[
+          { top: "3%",  left: "8%",   rotate: -15, size: 90  },
+          { top: "7%",  left: "55%",  rotate: 30,  size: 70  },
+          { top: "5%",  left: "82%",  rotate: -5,  size: 110 },
+          { top: "18%", left: "28%",  rotate: 20,  size: 80  },
+          { top: "22%", left: "70%",  rotate: -35, size: 95  },
+          { top: "32%", left: "5%",   rotate: 10,  size: 75  },
+          { top: "35%", left: "45%",  rotate: -20, size: 105 },
+          { top: "38%", left: "88%",  rotate: 25,  size: 65  },
+          { top: "50%", left: "18%",  rotate: -8,  size: 100 },
+          { top: "52%", left: "62%",  rotate: 40,  size: 80  },
+          { top: "62%", left: "35%",  rotate: -30, size: 90  },
+          { top: "65%", left: "80%",  rotate: 12,  size: 70  },
+          { top: "72%", left: "3%",   rotate: 22,  size: 85  },
+          { top: "75%", left: "52%",  rotate: -18, size: 110 },
+          { top: "82%", left: "25%",  rotate: 35,  size: 75  },
+          { top: "85%", left: "72%",  rotate: -10, size: 95  },
+          { top: "90%", left: "42%",  rotate: 15,  size: 65  },
+          { top: "93%", left: "90%",  rotate: -25, size: 80  },
+        ].map((item, i) => (
+          <img key={i} src="https://cdn.poehali.dev/files/15c8c645-e1f6-48d4-87f2-db2f120f56ac.png"
+            alt="" style={{ position: "absolute", top: item.top, left: item.left, width: item.size, height: item.size, opacity: 0.06, transform: `rotate(${item.rotate}deg)`, objectFit: "contain" }} />
+        ))}
+      </div>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
       {/* HEADER */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
@@ -83,6 +110,7 @@ export default function Index() {
 
       <ConfirmDialog open={logoutConfirm} title="Выход" message="Выйти из системы?"
         onConfirm={logout} onCancel={() => setLogoutConfirm(false)} />
+      </div>
     </div>
   );
 }
