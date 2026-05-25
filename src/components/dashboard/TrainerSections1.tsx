@@ -13,7 +13,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const { data: payData = [] } = useQuery({ queryKey: ["pay-month", month, user.id], queryFn: () => paymentsApi.byMonth(month) });
 
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: "", hall: "", grp: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" });
+  const [form, setForm] = useState({ name: "", hall: "", grp: "", schedule: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" });
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<Set<number>>(new Set());
 
@@ -34,7 +34,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   };
   const addStudent = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
-    try { await studentsApi.create(form); qc.invalidateQueries({ queryKey: ["students"] }); setShowAdd(false); setForm({ name: "", hall: "", grp: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" }); }
+    try { await studentsApi.create(form); qc.invalidateQueries({ queryKey: ["students"] }); setShowAdd(false); setForm({ name: "", hall: "", grp: "", schedule: "", phone: "", iko: "", fee: 3000, lvl: "", cert: false, cert_from: "", cert_to: "" }); }
     finally { setSaving(false); }
   };
   const deleteStudent = async (id: number, name: string) => {
@@ -65,6 +65,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm truncate">{s.name as string}</div>
                 <div className="text-xs text-gray-400 mt-0.5">{s.hall as string} · {s.grp as string} · {s.lvl as string}</div>
+                {s.schedule && <div className="text-xs text-gray-400 flex items-center gap-1"><Icon name="Clock" size={11} />{s.schedule as string}</div>}
                 <div className="flex flex-wrap gap-1 mt-1.5">
                   {s.cert ? (certOk ? <span className="badge-present">✓ Справка</span> : <span className="badge-absent">Просрочена</span>) : <span className="badge-absent">Нет справки</span>}
                   {here ? <span className="badge-present">✅ Был</span> : <span className="badge-absent">❌ Нет</span>}
@@ -96,6 +97,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           <div className="grid grid-cols-2 gap-2">
             <input className={inputCls} placeholder="Зал" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
             <input className={inputCls} placeholder="Группа" value={form.grp} onChange={e => setForm(p => ({ ...p, grp: e.target.value }))} />
+            <input className={inputCls} placeholder="Время группы (пн/ср 18:00)" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
             <input className={inputCls} placeholder="Телефон" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
             <input className={inputCls} placeholder="IKO карта" value={form.iko} onChange={e => setForm(p => ({ ...p, iko: e.target.value }))} />
             <input className={inputCls} placeholder="Абонемент ₽" type="number" value={form.fee} onChange={e => setForm(p => ({ ...p, fee: +e.target.value }))} />

@@ -82,11 +82,12 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Имя обязательно")
         cur.execute(f"""
-            INSERT INTO {S}.students (trainer_id, name, hall, grp, phone, iko, fee, lvl, cert, cert_from, cert_to)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            INSERT INTO {S}.students (trainer_id, name, hall, grp, schedule, phone, iko, fee, lvl, cert, cert_from, cert_to)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
         """, (
             uid, name,
             body.get("hall") or None, body.get("grp") or None,
+            body.get("schedule") or None,
             body.get("phone") or None, body.get("iko") or None,
             int(body.get("fee", 3000)),
             body.get("lvl") or None,
@@ -113,10 +114,11 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Нет прав", 403)
         cur.execute(f"""
-            UPDATE {S}.students SET name=%s, hall=%s, grp=%s, phone=%s, iko=%s,
+            UPDATE {S}.students SET name=%s, hall=%s, grp=%s, schedule=%s, phone=%s, iko=%s,
             fee=%s, lvl=%s, cert=%s, cert_from=%s, cert_to=%s WHERE id=%s
         """, (
             body.get("name"), body.get("hall") or None, body.get("grp") or None,
+            body.get("schedule") or None,
             body.get("phone") or None, body.get("iko") or None,
             int(body.get("fee", 3000)), body.get("lvl") or None,
             bool(body.get("cert", False)),
