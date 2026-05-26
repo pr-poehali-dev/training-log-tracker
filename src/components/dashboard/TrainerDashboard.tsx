@@ -12,11 +12,11 @@ export default function TrainerDashboard({ user }: { user: AppUser }) {
 
   const toolbar = (
     <>
-      {(tab === "students" || tab === "attendance") && (
+      {tab === "students" && (
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
           className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm" />
       )}
-      {(tab === "payments" || tab === "personal" || tab === "reports") && (
+      {(tab === "payments" || tab === "personal" || tab === "reports" || tab === "attendance") && (
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
           className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm" />
       )}
@@ -27,7 +27,7 @@ export default function TrainerDashboard({ user }: { user: AppUser }) {
     <AppShell tab={tab} onTabChange={setTab} toolbar={toolbar}>
       {tab === "students"   && <StudentsSection   user={user} date={date} month={month} />}
       {tab === "payments"   && <PaymentsSection   user={user} month={month} />}
-      {tab === "attendance" && <AttendanceSection user={user} date={date} />}
+      {tab === "attendance" && <AttendanceSection user={user} date={date} month={month} />}
       {tab === "personal"   && <PersonalSection   user={user} month={month} />}
       {tab === "notes"      && <NotesSection      user={user} />}
       {tab === "reports"    && <ReportsSection    user={user} month={month} />}
