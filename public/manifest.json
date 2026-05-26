@@ -1,26 +1,26 @@
 {
-  "name": "Журнал тренера ИКО",
+  "name": "ИКО Журнал тренера",
   "short_name": "ИКО Журнал",
-  "description": "Журнал тренера по кёкусинкай — посещения, оплаты, ученики",
-  "theme_color": "#8B1A1A",
-  "background_color": "#ffffff",
-  "display": "standalone",
-  "orientation": "portrait",
+  "description": "Журнал посещаемости и оплат для тренеров каратэ",
   "start_url": "/",
-  "scope": "/",
-  "lang": "ru",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B1A1A",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/45e6e2d6-5894-40cf-800e-23896cecec30.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/45e6e2d6-5894-40cf-800e-23896cecec30.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["productivity", "sports"],
+  "lang": "ru"
 }

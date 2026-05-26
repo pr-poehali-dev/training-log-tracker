@@ -43,6 +43,9 @@ export const authApi = {
 
   togglePermission: (id: number) =>
     req(`${URLS.auth}?action=toggle_permission&id=${id}`, { method: "POST" }),
+
+  updateTrainer: (id: number, body: { full_name: string; hall?: string; schedule?: string; trainings_per_month?: number; password?: string }) =>
+    req(`${URLS.auth}?action=update_trainer&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
 };
 
 // ── STUDENTS ──────────────────────────────────────────────────
@@ -75,19 +78,23 @@ export const attendanceApi = {
     return offlineGet(url, `att_month_${month}_${trainerId ?? "me"}`);
   },
 
-  mark: (body: { student_id: number; date: string; present: boolean }) =>
-    offlineMutate(
+  mark: (body: { student_id: number; date: string; present: boolean }) => {
+    const month = body.date.slice(0, 7);
+    const patchFn = (cached: unknown) => {
+      const arr = (cached as Record<string, unknown>[]) || [];
+      const exists = arr.find(a => a.student_id === body.student_id && a.date === body.date);
+      if (exists) return arr.map(a => a.student_id === body.student_id && a.date === body.date ? { ...a, present: body.present } : a);
+      return [...arr, { student_id: body.student_id, date: body.date, present: body.present }];
+    };
+    return offlineMutate(
       `${URLS.journal}?section=attendance`,
       "POST",
       body,
-      "att-date",
-      (cached: unknown) => {
-        const arr = (cached as Record<string, unknown>[]) || [];
-        const exists = arr.find(a => a.student_id === body.student_id && a.date === body.date);
-        if (exists) return arr.map(a => a.student_id === body.student_id && a.date === body.date ? { ...a, present: body.present } : a);
-        return [...arr, { student_id: body.student_id, date: body.date, present: body.present }];
-      },
-    ),
+      `att_date_${body.date}_me`,
+      patchFn,
+      [{ key: `att_month_${month}_me`, fn: patchFn }],
+    );
+  },
 };
 
 // ── PAYMENTS ──────────────────────────────────────────────────
@@ -97,17 +104,19 @@ export const paymentsApi = {
     return offlineGet(url, `pay_month_${month}_${trainerId ?? "me"}`);
   },
 
-  mark: (body: { student_id: number; month: string; paid: boolean }) =>
-    offlineMutate(
+  mark: (body: { student_id: number; month: string; paid: boolean }) => {
+    const patchFn = (cached: unknown) => {
+      const arr = (cached as Record<string, unknown>[]) || [];
+      return arr.map(p => p.student_id === body.student_id ? { ...p, paid: body.paid } : p);
+    };
+    return offlineMutate(
       `${URLS.journal}?section=payments`,
       "POST",
       body,
-      "pay-month",
-      (cached: unknown) => {
-        const arr = (cached as Record<string, unknown>[]) || [];
-        return arr.map(p => p.student_id === body.student_id ? { ...p, paid: body.paid } : p);
-      },
-    ),
+      `pay_month_${body.month}_me`,
+      patchFn,
+    );
+  },
 };
 
 // ── PERSONAL SESSIONS ─────────────────────────────────────────

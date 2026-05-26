@@ -21,15 +21,28 @@ function Loading() {
 }
 
 // ─── ТРЕНЕРЫ ──────────────────────────────────────────────────────────────────
+type EditForm = { full_name: string; hall: string; schedule: string; trainings_per_month: number; password: string };
+const emptyEdit = (t: Record<string, unknown>): EditForm => ({
+  full_name: t.full_name as string,
+  hall: (t.hall as string) || "",
+  schedule: (t.schedule as string) || "",
+  trainings_per_month: (t.trainings_per_month as number) || 13,
+  password: "",
+});
+
 function TrainersTab({ user }: { user: AppUser }) {
   const qc = useQueryClient();
   const { data: trainers = [], isLoading } = useQuery({ queryKey: ["trainers"], queryFn: () => authApi.trainers() });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "", full_name: "", hall: "", schedule: "" });
+  const [form, setForm] = useState({ username: "", password: "", full_name: "", hall: "", schedule: "", trainings_per_month: 13 });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState<Set<number>>(new Set());
   const [toggling, setToggling] = useState<Set<number>>(new Set());
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ full_name: "", hall: "", schedule: "", trainings_per_month: 13, password: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErr, setEditErr] = useState("");
 
   const togglePerm = async (id: number) => {
     setToggling(prev => new Set([...prev, id]));
@@ -43,9 +56,19 @@ function TrainersTab({ user }: { user: AppUser }) {
       await authApi.register(form);
       qc.invalidateQueries({ queryKey: ["trainers"] });
       setShowForm(false);
-      setForm({ username: "", password: "", full_name: "", hall: "", schedule: "" });
+      setForm({ username: "", password: "", full_name: "", hall: "", schedule: "", trainings_per_month: 13 });
     } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Ошибка"); }
     finally { setSaving(false); }
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault(); setEditErr(""); setEditSaving(true);
+    try {
+      await authApi.updateTrainer(editId!, editForm);
+      qc.invalidateQueries({ queryKey: ["trainers"] });
+      setEditId(null);
+    } catch (ex: unknown) { setEditErr(ex instanceof Error ? ex.message : "Ошибка"); }
+    finally { setEditSaving(false); }
   };
 
   const del = async (id: number, name: string) => {
@@ -78,7 +101,11 @@ function TrainersTab({ user }: { user: AppUser }) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <input className={inputCls} placeholder="Зал (необязательно)" value={form.hall} onChange={e => setForm(p => ({ ...p, hall: e.target.value }))} />
-              <input className={inputCls} placeholder="Время групп (напр. пн/ср/пт 18:00)" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
+              <input className={inputCls} placeholder="Расписание (пн/ср/пт 18:00)" value={form.schedule} onChange={e => setForm(p => ({ ...p, schedule: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">Занятий в месяц:</label>
+              <input type="number" min={1} max={31} className={inputCls} value={form.trainings_per_month} onChange={e => setForm(p => ({ ...p, trainings_per_month: +e.target.value }))} />
             </div>
             {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
             <div className="flex gap-2"><OutlineBtn onClick={() => setShowForm(false)}>Отмена</OutlineBtn><PrimaryBtn type="submit" disabled={saving}>{saving ? "Сохранение..." : "Создать тренера"}</PrimaryBtn></div>
@@ -91,26 +118,58 @@ function TrainersTab({ user }: { user: AppUser }) {
           <div key={t.id as number} className="card-glass rounded-xl p-3 flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center font-oswald font-bold text-gray-500 flex-shrink-0">{ini(t.full_name as string)}</div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm">{t.full_name as string}</div>
-              <div className="text-xs text-gray-400">@{t.username as string}{t.hall ? ` · ${t.hall}` : ""}</div>
-              {t.schedule && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Icon name="Clock" size={11} />{t.schedule as string}</div>}
-              <div className="text-[10px] text-gray-300 mt-0.5">с {(t.created_at as string)?.slice(0, 10)}</div>
-              <button
-                onClick={() => togglePerm(t.id as number)}
-                disabled={toggling.has(t.id as number)}
-                className="mt-2 flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 transition-all disabled:opacity-50"
-                style={{
-                  background: t.can_edit_journal ? "hsl(142,60%,93%)" : "hsl(0,0%,93%)",
-                  color: t.can_edit_journal ? "hsl(142,60%,30%)" : "hsl(0,0%,45%)",
-                }}>
-                <Icon name={t.can_edit_journal ? "ShieldCheck" : "ShieldOff"} size={12} />
-                {t.can_edit_journal ? "Может вносить данные" : "Только просмотр"}
-              </button>
+              {editId === (t.id as number) ? (
+                <form onSubmit={saveEdit} className="flex flex-col gap-2">
+                  <input className={inputCls} placeholder="ФИО *" value={editForm.full_name} onChange={e => setEditForm(p => ({ ...p, full_name: e.target.value }))} required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={inputCls} placeholder="Зал" value={editForm.hall} onChange={e => setEditForm(p => ({ ...p, hall: e.target.value }))} />
+                    <input className={inputCls} placeholder="Расписание" value={editForm.schedule} onChange={e => setEditForm(p => ({ ...p, schedule: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-1">
+                      <label className="text-xs text-gray-500 whitespace-nowrap">Занятий/мес:</label>
+                      <input type="number" min={1} max={31} className={inputCls} value={editForm.trainings_per_month} onChange={e => setEditForm(p => ({ ...p, trainings_per_month: +e.target.value }))} />
+                    </div>
+                    <input className={inputCls} type="password" placeholder="Новый пароль" value={editForm.password} onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))} />
+                  </div>
+                  {editErr && <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">{editErr}</div>}
+                  <div className="flex gap-2 pt-1">
+                    <OutlineBtn onClick={() => setEditId(null)}>Отмена</OutlineBtn>
+                    <PrimaryBtn type="submit" disabled={editSaving}>{editSaving ? "..." : "Сохранить"}</PrimaryBtn>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="font-semibold text-sm">{t.full_name as string}</div>
+                  <div className="text-xs text-gray-400">@{t.username as string}{t.hall ? ` · ${t.hall}` : ""}</div>
+                  {t.schedule && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Icon name="Clock" size={11} />{t.schedule as string}</div>}
+                  <div className="text-[10px] text-gray-300 mt-0.5">с {(t.created_at as string)?.slice(0, 10)} · {t.trainings_per_month as number} зан./мес.</div>
+                  <button
+                    onClick={() => togglePerm(t.id as number)}
+                    disabled={toggling.has(t.id as number)}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 transition-all disabled:opacity-50"
+                    style={{
+                      background: t.can_edit_journal ? "hsl(142,60%,93%)" : "hsl(0,0%,93%)",
+                      color: t.can_edit_journal ? "hsl(142,60%,30%)" : "hsl(0,0%,45%)",
+                    }}>
+                    <Icon name={t.can_edit_journal ? "ShieldCheck" : "ShieldOff"} size={12} />
+                    {t.can_edit_journal ? "Может вносить данные" : "Только просмотр"}
+                  </button>
+                </>
+              )}
             </div>
-            <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)}
-              className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 mt-1 flex-shrink-0">
-              <Icon name="Trash2" size={16} />
-            </button>
+            {editId !== (t.id as number) && (
+              <div className="flex flex-col gap-1 flex-shrink-0">
+                <button onClick={() => { setEditId(t.id as number); setEditForm(emptyEdit(t)); setEditErr(""); }}
+                  className="text-gray-300 hover:text-blue-400 transition-colors p-1">
+                  <Icon name="Pencil" size={15} />
+                </button>
+                <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)}
+                  className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 p-1">
+                  <Icon name="Trash2" size={15} />
+                </button>
+              </div>
+            )}
           </div>
         ))}
         {(trainers as []).length === 0 && <div className="text-center py-10 text-gray-400"><Icon name="Users" size={40} className="mx-auto mb-2 opacity-20" /><p>Нет тренеров</p></div>}

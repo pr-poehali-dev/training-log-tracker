@@ -20,7 +20,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """Auth: action=login|register|trainers|toggle_permission через ?action=..."""
+    """Auth: action=login|register|trainers|toggle_permission|update_trainer через ?action=..."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -45,14 +45,14 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Введите логин и пароль")
         cur.execute(
-            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal FROM {S}.users WHERE username=%s AND password=%s",
+            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal, trainings_per_month FROM {S}.users WHERE username=%s AND password=%s",
             (username, password)
         )
         row = cur.fetchone()
         cur.close(); conn.close()
         if not row:
             return err("Неверный логин или пароль", 401)
-        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4], "schedule": row[5], "can_edit_journal": row[6]})
+        return ok({"id": row[0], "username": row[1], "role": row[2], "full_name": row[3], "hall": row[4], "schedule": row[5], "can_edit_journal": row[6], "trainings_per_month": row[7]})
 
     # POST ?action=register  (только admin)
     if method == "POST" and action == "register":
@@ -66,6 +66,7 @@ def handler(event: dict, context) -> dict:
         full_name = body.get("full_name", "").strip()
         hall      = body.get("hall", "").strip()
         schedule  = body.get("schedule", "").strip()
+        trainings_per_month = int(body.get("trainings_per_month", 13))
         if not username or not password or not full_name:
             cur.close(); conn.close()
             return err("Заполните все поля")
@@ -74,13 +75,13 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Логин уже занят")
         cur.execute(
-            f"INSERT INTO {S}.users (username, password, role, full_name, hall, schedule, can_edit_journal) VALUES (%s,%s,'trainer',%s,%s,%s,TRUE) RETURNING id",
-            (username, password, full_name, hall or None, schedule or None)
+            f"INSERT INTO {S}.users (username, password, role, full_name, hall, schedule, can_edit_journal, trainings_per_month) VALUES (%s,%s,'trainer',%s,%s,%s,TRUE,%s) RETURNING id",
+            (username, password, full_name, hall or None, schedule or None, trainings_per_month)
         )
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close(); conn.close()
-        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule, "can_edit_journal": True})
+        return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule, "can_edit_journal": True, "trainings_per_month": trainings_per_month})
 
     # GET ?action=trainers  (admin only)
     if method == "GET" and action == "trainers":
@@ -90,11 +91,44 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Нет прав", 403)
         cur.execute(
-            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal, created_at FROM {S}.users WHERE role='trainer' ORDER BY full_name"
+            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal, created_at, trainings_per_month FROM {S}.users WHERE role='trainer' ORDER BY full_name"
         )
-        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "can_edit_journal": r[6], "created_at": str(r[7])} for r in cur.fetchall()]
+        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "can_edit_journal": r[6], "created_at": str(r[7]), "trainings_per_month": r[8]} for r in cur.fetchall()]
         cur.close(); conn.close()
         return ok(trainers)
+
+    # PUT ?action=update_trainer&id=X  (admin only)
+    if method == "PUT" and action == "update_trainer":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        tid = qs.get("id")
+        if not tid:
+            cur.close(); conn.close()
+            return err("Нет id")
+        full_name = body.get("full_name", "").strip()
+        hall      = body.get("hall", "").strip()
+        schedule  = body.get("schedule", "").strip()
+        trainings_per_month = int(body.get("trainings_per_month", 13))
+        password  = body.get("password", "").strip()
+        if not full_name:
+            cur.close(); conn.close()
+            return err("ФИО обязательно")
+        if password:
+            cur.execute(
+                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s, password=%s WHERE id=%s AND role='trainer'",
+                (full_name, hall or None, schedule or None, trainings_per_month, password, tid)
+            )
+        else:
+            cur.execute(
+                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s WHERE id=%s AND role='trainer'",
+                (full_name, hall or None, schedule or None, trainings_per_month, tid)
+            )
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"message": "Обновлено"})
 
     # POST ?action=toggle_permission&id=X  (admin only)
     if method == "POST" and action == "toggle_permission":

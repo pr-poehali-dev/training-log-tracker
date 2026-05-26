@@ -1,75 +1,45 @@
-const CACHE_NAME = "iko-journal-v1";
-const API_CACHE = "iko-api-v1";
+const CACHE = "iko-v1";
+const STATIC = ["/", "/login", "/index.html"];
 
-// Ресурсы для кэширования при установке
-const PRECACHE_URLS = [
-  "/",
-  "/login",
-  "/index.html",
-];
-
-// Установка — кэшируем основные страницы
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
   );
 });
 
-// Активация — удаляем старые кэши
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME && k !== API_CACHE).map((k) => caches.delete(k)))
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
-// Перехват запросов
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+self.addEventListener("fetch", e => {
+  const url = new URL(e.request.url);
 
-  // API запросы (functions.poehali.dev) — Network First
-  if (url.hostname === "functions.poehali.dev") {
-    event.respondWith(
-      fetch(event.request.clone())
-        .then((res) => {
-          if (res.ok && event.request.method === "GET") {
-            const resClone = res.clone();
-            caches.open(API_CACHE).then((cache) => cache.put(event.request, resClone));
-          }
-          return res;
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || new Response(JSON.stringify({ error: "Офлайн" }), { headers: { "Content-Type": "application/json" } })))
+  // API-запросы — только сеть, без кеша SW (кешируются через IndexedDB)
+  if (url.hostname === "functions.poehali.dev") return;
+
+  // Навигация — отдаём index.html из кеша (SPA)
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match("/index.html"))
     );
     return;
   }
 
-  // CDN (изображения, шрифты) — Cache First
-  if (url.hostname === "cdn.poehali.dev" || url.hostname === "fonts.gstatic.com" || url.hostname === "fonts.googleapis.com") {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(event.request).then((res) => {
+  // Статика — cache first
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(res => {
+        if (res.ok && e.request.method === "GET") {
           const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return res;
-        });
-      })
-    );
-    return;
-  }
-
-  // Всё остальное (JS, CSS, HTML) — Cache First с fallback на сеть
-  if (event.request.method !== "GET") return;
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
         return res;
       });
-      return cached || network;
     })
   );
 });

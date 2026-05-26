@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { studentsApi, attendanceApi, paymentsApi } from "@/lib/api";
+import { studentsApi, attendanceApi, paymentsApi, authApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
@@ -23,6 +23,12 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [editForm, setEditForm] = useState(emptyForm(user));
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<Set<number>>(new Set());
+  const [offlineToast, setOfflineToast] = useState("");
+
+  const showToast = (msg: string) => {
+    setOfflineToast(msg);
+    setTimeout(() => setOfflineToast(""), 2500);
+  };
 
   const [search, setSearch] = useState("");
   const [filterGrp, setFilterGrp] = useState("");
@@ -49,13 +55,35 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const markAtt = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
-    try { await attendanceApi.mark({ student_id: sid, date, present: true }); qc.invalidateQueries({ queryKey: ["att-date"] }); qc.invalidateQueries({ queryKey: ["att-month"] }); }
-    finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+    try {
+      const res = await attendanceApi.mark({ student_id: sid, date, present: true });
+      if (res?.offline) {
+        showToast("✓ Посещение сохранено (офлайн)");
+        qc.setQueryData(["att-date", date, user.id], (old: Record<string, unknown>[] | undefined) => {
+          const arr = old || [];
+          if (arr.some(a => a.student_id === sid && a.present)) return arr;
+          return [...arr, { student_id: sid, date, present: true }];
+        });
+      } else {
+        qc.invalidateQueries({ queryKey: ["att-date"] });
+        qc.invalidateQueries({ queryKey: ["att-month"] });
+      }
+    } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
   };
   const markPay = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
-    try { await paymentsApi.mark({ student_id: sid, month, paid: true }); qc.invalidateQueries({ queryKey: ["pay-month"] }); }
-    finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+    try {
+      const res = await paymentsApi.mark({ student_id: sid, month, paid: true });
+      if (res?.offline) {
+        showToast("✓ Оплата сохранена (офлайн)");
+        qc.setQueryData(["pay-month", month, user.id], (old: Record<string, unknown>[] | undefined) => {
+          const arr = old || [];
+          return arr.map(p => p.student_id === sid ? { ...p, paid: true } : p);
+        });
+      } else {
+        qc.invalidateQueries({ queryKey: ["pay-month"] });
+      }
+    } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
   };
   const addStudent = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
@@ -102,6 +130,11 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   return (
     <div className="flex flex-col gap-3">
+      {offlineToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg whitespace-nowrap pointer-events-none">
+          {offlineToast}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="section-title">Ученики <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
         <PrimaryBtn onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
@@ -348,32 +381,69 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
 
 // ─── ATTENDANCE SECTION ──────────────────────────────────────────────────────
 export function AttendanceSection({ user, date, month }: { user: AppUser; date: string; month: string }) {
+  const qc = useQueryClient();
   const { data: students = [], isLoading } = useQuery({ queryKey: ["students", user.id], queryFn: () => studentsApi.list() });
   const { data: attMonth = [] } = useQuery({ queryKey: ["att-month", month, user.id], queryFn: () => attendanceApi.byMonth(month) });
+  const [editTpm, setEditTpm] = useState(false);
+  const [tpm, setTpm] = useState(user.trainings_per_month ?? 13);
+  const [savingTpm, setSavingTpm] = useState(false);
 
   if (isLoading) return <Loading />;
 
+  const totalTrainings = user.trainings_per_month ?? 13;
   const days = [...new Set((attMonth as Record<string, unknown>[]).map(a => a.date as string))].sort();
   const presentOn = (sid: number, d: string) =>
     (attMonth as Record<string, unknown>[]).some(a => a.student_id === sid && a.date === d && a.present);
   const total = (sid: number) => days.filter(d => presentOn(sid, d)).length;
 
+  const saveTpm = async () => {
+    setSavingTpm(true);
+    try {
+      await authApi.updateTrainer(user.id, { full_name: user.full_name, hall: user.hall, schedule: user.schedule, trainings_per_month: tpm });
+      const updated = { ...user, trainings_per_month: tpm };
+      localStorage.setItem("iko_user", JSON.stringify(updated));
+      qc.invalidateQueries({ queryKey: ["att-month"] });
+      setEditTpm(false);
+    } finally { setSavingTpm(false); }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <h1 className="section-title">Посещения — {month}</h1>
-      <div className="stat-card flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(0,72%,97%)" }}><Icon name="CalendarCheck" size={20} style={{ color: "hsl(0,72%,40%)" }} /></div>
-        <div><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{days.length}</div><div className="text-xs text-gray-400">Занятий в этом месяце</div></div>
+      <div className="flex gap-2">
+        <div className="stat-card flex-1 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(0,72%,97%)" }}><Icon name="CalendarCheck" size={20} style={{ color: "hsl(0,72%,40%)" }} /></div>
+          <div><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{days.length}</div><div className="text-xs text-gray-400">Проведено занятий</div></div>
+        </div>
+        <div className="stat-card flex-1 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50"><Icon name="Target" size={20} className="text-gray-400" /></div>
+          <div className="flex-1">
+            {editTpm ? (
+              <div className="flex items-center gap-1">
+                <input type="number" min={1} max={31} value={tpm} onChange={e => setTpm(+e.target.value)}
+                  className="w-14 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:border-red-400" />
+                <button onClick={saveTpm} disabled={savingTpm} className="text-xs font-bold px-2 py-1 rounded text-white" style={{ background: "hsl(0,72%,40%)" }}>{savingTpm ? "..." : "✓"}</button>
+                <button onClick={() => setEditTpm(false)} className="text-xs text-gray-400 px-1">✕</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="text-xl font-oswald font-bold text-gray-700">{totalTrainings}</div>
+                <button onClick={() => { setTpm(totalTrainings); setEditTpm(true); }} className="text-gray-300 hover:text-gray-500"><Icon name="Pencil" size={13} /></button>
+              </div>
+            )}
+            <div className="text-xs text-gray-400">Занятий в месяце (план)</div>
+          </div>
+        </div>
       </div>
       {(students as Record<string, unknown>[]).map(s => {
         const sid = s.id as number;
         const cnt = total(sid);
-        const pct = days.length ? Math.round(cnt / days.length * 100) : 0;
+        const pct = Math.min(100, totalTrainings ? Math.round(cnt / totalTrainings * 100) : 0);
         return (
           <div key={sid} className="card-glass rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-oswald font-bold text-gray-500">{ini(s.name as string)}</div>
-              <div className="flex-1"><div className="text-sm font-semibold">{s.name as string}</div><div className="text-xs text-gray-400">{cnt} из {days.length} занятий · {pct}%</div></div>
+              <div className="flex-1"><div className="text-sm font-semibold">{s.name as string}</div><div className="text-xs text-gray-400">{cnt} из {totalTrainings} занятий · {pct}%</div></div>
               <div className="text-lg font-oswald font-bold" style={{ color: pct >= 70 ? "hsl(142,60%,40%)" : "hsl(0,72%,40%)" }}>{pct}%</div>
             </div>
             <div className="flex flex-wrap gap-1">

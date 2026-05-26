@@ -14,6 +14,7 @@ export interface AppUser {
   hall?: string;
   schedule?: string;
   can_edit_journal?: boolean;
+  trainings_per_month?: number;
 }
 
 export default function Index() {

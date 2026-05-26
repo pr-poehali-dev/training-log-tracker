@@ -1,0 +1,1 @@
+ALTER TABLE t_p10685360_training_log_tracker.users ADD COLUMN IF NOT EXISTS trainings_per_month integer NOT NULL DEFAULT 13;

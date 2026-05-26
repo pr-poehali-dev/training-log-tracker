@@ -19,7 +19,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """Отчёты. Тренер не видит выручку. Админ видит всё."""
+    """Отчёты. Тренер не видит выручку. Админ видит всё, включая сводку по всем тренерам."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -45,37 +45,42 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return err("Укажите month")
 
-    trainer_filter = qs.get("trainer_id") if role == "admin" else uid
+    trainer_id_param = qs.get("trainer_id") if role == "admin" else str(uid)
+    all_trainers = (role == "admin" and not trainer_id_param)
 
-    cur.execute(f"""
-        SELECT
-            s.id, s.name, s.hall, s.grp, s.fee,
-            COALESCE(p.paid, FALSE) as paid,
-            COUNT(DISTINCT CASE WHEN a.present THEN a.date END) as present_count,
-            COUNT(DISTINCT a.date) as total_days,
-            COUNT(DISTINCT ps.id) as personal_count,
-            COALESCE(SUM(CASE WHEN ps.paid THEN ps.cost ELSE 0 END), 0) as personal_revenue,
-            u.full_name as trainer_name
-        FROM {S}.students s
-        LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
-        LEFT JOIN {S}.attendance a ON a.student_id=s.id AND to_char(a.date,'YYYY-MM')=%s
-        LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
-        JOIN {S}.users u ON u.id=s.trainer_id
-        WHERE s.trainer_id=%s
-        GROUP BY s.id, s.name, s.hall, s.grp, s.fee, p.paid, u.full_name
-        ORDER BY s.name
-    """, (month, month, month, trainer_filter))
-
-    cols = [d[0] for d in cur.description]
     students = []
-    for r in cur.fetchall():
-        row = dict(zip(cols, r))
-        row["paid"] = bool(row["paid"])
-        row["attendance_rate"] = (
-            round(int(row["present_count"]) / int(row["total_days"]) * 100)
-            if int(row["total_days"]) else 0
-        )
-        students.append(row)
+    if not all_trainers:
+        trainer_filter = trainer_id_param if trainer_id_param else uid
+        cur.execute(f"""
+            SELECT
+                s.id, s.name, s.hall, s.grp, s.fee,
+                COALESCE(p.paid, FALSE) as paid,
+                COUNT(DISTINCT CASE WHEN a.present THEN a.date END) as present_count,
+                COUNT(DISTINCT a.date) as total_days,
+                COUNT(DISTINCT ps.id) as personal_count,
+                COALESCE((SELECT SUM(ps2.cost) FROM {S}.personal_sessions ps2
+                          WHERE ps2.student_id=s.id AND ps2.paid AND to_char(ps2.date,'YYYY-MM')=%s), 0) as personal_revenue,
+                u.full_name as trainer_name,
+                u.trainings_per_month
+            FROM {S}.students s
+            LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
+            LEFT JOIN {S}.attendance a ON a.student_id=s.id AND to_char(a.date,'YYYY-MM')=%s
+            LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
+            JOIN {S}.users u ON u.id=s.trainer_id
+            WHERE s.trainer_id=%s
+            GROUP BY s.id, s.name, s.hall, s.grp, s.fee, p.paid, u.full_name, u.trainings_per_month
+            ORDER BY s.name
+        """, (month, month, month, month, trainer_filter))
+
+        cols = [d[0] for d in cur.description]
+        for r in cur.fetchall():
+            row = dict(zip(cols, r))
+            row["paid"] = bool(row["paid"])
+            tpm = int(row.get("trainings_per_month") or 13)
+            present = int(row["present_count"])
+            row["attendance_rate"] = min(100, round(present / tpm * 100)) if tpm else 0
+            row["trainings_per_month"] = tpm
+            students.append(row)
 
     subs_revenue = sum(s["fee"] for s in students if s["paid"])
     pers_revenue = sum(int(s["personal_revenue"]) for s in students)
@@ -93,29 +98,42 @@ def handler(event: dict, context) -> dict:
         summary["pers_revenue"] = pers_revenue
         summary["total_revenue"] = subs_revenue + pers_revenue
 
+    # Сводка по всем тренерам — всегда считаем для админа
     trainers_summary = []
-    if role == "admin" and not qs.get("trainer_id"):
+    if role == "admin":
         cur.execute(f"""
             SELECT
                 u.id, u.full_name, u.hall,
                 COUNT(DISTINCT s.id) as student_count,
                 COALESCE(SUM(CASE WHEN p.paid THEN s.fee ELSE 0 END), 0) as subs_rev,
-                COALESCE(SUM(CASE WHEN ps.paid THEN ps.cost ELSE 0 END), 0) as pers_rev
+                COALESCE((SELECT SUM(ps2.cost) FROM {S}.personal_sessions ps2
+                          JOIN {S}.students s2 ON s2.id=ps2.student_id
+                          WHERE s2.trainer_id=u.id AND ps2.paid AND to_char(ps2.date,'YYYY-MM')=%s), 0) as pers_rev
             FROM {S}.users u
             LEFT JOIN {S}.students s ON s.trainer_id=u.id
             LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
-            LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
             WHERE u.role='trainer'
             GROUP BY u.id, u.full_name, u.hall
             ORDER BY u.full_name
         """, (month, month))
         t_cols = [d[0] for d in cur.description]
+        total_subs = 0
+        total_pers = 0
         for r in cur.fetchall():
             t = dict(zip(t_cols, r))
             t["total_rev"] = int(t["subs_rev"]) + int(t["pers_rev"])
             t["subs_rev"] = int(t["subs_rev"])
             t["pers_rev"] = int(t["pers_rev"])
+            total_subs += t["subs_rev"]
+            total_pers += t["pers_rev"]
             trainers_summary.append(t)
+
+        # При "все тренеры" summary считается из сводки
+        if all_trainers:
+            summary["subs_revenue"] = total_subs
+            summary["pers_revenue"] = total_pers
+            summary["total_revenue"] = total_subs + total_pers
+            summary["total_students"] = sum(int(t["student_count"]) for t in trainers_summary)
 
     cur.close(); conn.close()
     return ok({
