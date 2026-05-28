@@ -1,4 +1,4 @@
-const CACHE = "iko-v1";
+const CACHE = "iko-v2";
 const STATIC = ["/", "/login", "/index.html"];
 
 self.addEventListener("install", e => {
@@ -17,19 +17,11 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
-
-  // API-запросы — только сеть, без кеша SW (кешируются через IndexedDB)
   if (url.hostname === "functions.poehali.dev") return;
-
-  // Навигация — отдаём index.html из кеша (SPA)
   if (e.request.mode === "navigate") {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match("/index.html"))
-    );
+    e.respondWith(fetch(e.request).catch(() => caches.match("/index.html")));
     return;
   }
-
-  // Статика — cache first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -40,6 +32,41 @@ self.addEventListener("fetch", e => {
         }
         return res;
       });
+    })
+  );
+});
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────────────────────
+self.addEventListener("push", e => {
+  let data = { title: "🥋 ИКО Журнал", body: "Напоминание", url: "/" };
+  try {
+    if (e.data) {
+      const parsed = JSON.parse(e.data.text());
+      data = { ...data, ...parsed };
+    }
+  } catch {}
+
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/45e6e2d6-5894-40cf-800e-23896cecec30.jpg",
+      badge: "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/files/45e6e2d6-5894-40cf-800e-23896cecec30.jpg",
+      tag: "iko-journal",
+      renotify: true,
+      vibrate: [200, 100, 200],
+      data: { url: data.url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/";
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url.includes(self.location.origin));
+      if (existing) { existing.focus(); existing.navigate(url); }
+      else clients.openWindow(url);
     })
   );
 });

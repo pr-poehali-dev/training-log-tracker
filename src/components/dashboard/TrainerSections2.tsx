@@ -5,6 +5,7 @@ import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
+import PushToggle from "@/components/shared/PushToggle";
 
 // ─── PERSONAL ─────────────────────────────────────────────────────────────────
 export function PersonalSection({ user, month }: { user: AppUser; month: string }) {
@@ -109,6 +110,7 @@ export function NotesSection({ user }: { user: AppUser }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between"><h1 className="section-title">Заметки</h1><PrimaryBtn onClick={() => { setEditId(null); setForm({ title: "", body: "", tags: "", important: false }); setShowForm(true); }}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn></div>
+      <PushToggle />
       {(notes as Record<string, unknown>[]).map(n => (
         <div key={n.id as number} className={`card-glass rounded-2xl p-4 border-l-2 ${n.important ? "border-l-red-500" : "border-l-gray-200"}`}>
           <div className="flex items-start justify-between gap-2 mb-1">

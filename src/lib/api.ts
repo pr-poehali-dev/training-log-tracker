@@ -6,6 +6,7 @@ const URLS = {
   reports:       "https://functions.poehali.dev/6c56dc4f-118e-4da5-83c3-bb24163222d5",
   students:      "https://functions.poehali.dev/dc890787-2476-4a3d-964e-94efd4210b0f",
   notifications: "https://functions.poehali.dev/8bafc972-b60d-47d5-af19-dd9811d522ae",
+  push:          "https://functions.poehali.dev/22d93ed7-ba75-44de-9235-cb0d4aa13729",
 };
 
 function getUser() {
@@ -162,6 +163,16 @@ export const notificationsApi = {
   list: () => req(URLS.notifications),
   markRead: (id?: number) => req(`${URLS.notifications}?action=mark_read`, { method: "POST", body: JSON.stringify(id ? { id } : {}) }),
   notifyJournalFilled: (date: string) => req(`${URLS.journal}?section=notify`, { method: "POST", body: JSON.stringify({ action: "journal_filled", date }) }),
+};
+
+// ── PUSH ──────────────────────────────────────────────────────
+export const pushApi = {
+  getVapidKey: (): Promise<{ vapid_public: string }> => req(`${URLS.push}?action=vapid_public`),
+  subscribe: (subscription: PushSubscriptionJSON) =>
+    req(`${URLS.push}?action=subscribe`, { method: "POST", body: JSON.stringify({ subscription }) }),
+  unsubscribe: (endpoint: string) =>
+    req(`${URLS.push}?action=unsubscribe`, { method: "POST", body: JSON.stringify({ endpoint }) }),
+  test: () => req(`${URLS.push}?action=test`, { method: "POST", body: "{}" }),
 };
 
 // ── REPORTS ───────────────────────────────────────────────────
