@@ -19,7 +19,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """CRUD учеников: тренер видит только своих, admin видит всех"""
+    """CRUD учеников. Архив при удалении. Новые поля: hall2, birthdate, annual_fee_number, insurance, insurance_to."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -44,27 +44,30 @@ def handler(event: dict, context) -> dict:
         return err("Пользователь не найден", 401)
     uid, role, hall = user
 
-    # GET — список учеников
+    # GET — список учеников (по умолчанию только активные, ?archived=1 для архива)
     if method == "GET":
+        show_archived = qs.get("archived") == "1"
+        archived_cond = "s.archived = TRUE" if show_archived else "s.archived = FALSE"
+
         if role == "admin":
             trainer_filter = qs.get("trainer_id")
             if trainer_filter:
                 cur.execute(f"""
                     SELECT s.*, u.full_name as trainer_name FROM {S}.students s
                     JOIN {S}.users u ON u.id = s.trainer_id
-                    WHERE s.trainer_id=%s ORDER BY s.name
+                    WHERE s.trainer_id=%s AND {archived_cond} ORDER BY s.name
                 """, (trainer_filter,))
             else:
                 cur.execute(f"""
                     SELECT s.*, u.full_name as trainer_name FROM {S}.students s
                     JOIN {S}.users u ON u.id = s.trainer_id
-                    ORDER BY u.full_name, s.name
+                    WHERE {archived_cond} ORDER BY u.full_name, s.name
                 """)
         else:
             cur.execute(f"""
                 SELECT s.*, u.full_name as trainer_name FROM {S}.students s
                 JOIN {S}.users u ON u.id = s.trainer_id
-                WHERE s.trainer_id=%s ORDER BY s.name
+                WHERE s.trainer_id=%s AND {archived_cond} ORDER BY s.name
             """, (uid,))
 
         cols = [d[0] for d in cur.description]
@@ -82,22 +85,29 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Имя обязательно")
         cur.execute(f"""
-            INSERT INTO {S}.students (trainer_id, name, hall, grp, schedule, phone, iko, fee, lvl, cert, cert_from, cert_to)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+            INSERT INTO {S}.students
+              (trainer_id, name, hall, hall2, grp, schedule, phone, iko, fee,
+               annual_fee_number, lvl, cert, cert_from, cert_to,
+               birthdate, insurance, insurance_to)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at
         """, (
             uid, name,
-            body.get("hall") or None, body.get("grp") or None,
-            body.get("schedule") or None,
+            body.get("hall") or None, body.get("hall2") or None,
+            body.get("grp") or None, body.get("schedule") or None,
             body.get("phone") or None, body.get("iko") or None,
             int(body.get("fee", 3000)),
+            body.get("annual_fee_number") or None,
             body.get("lvl") or None,
             bool(body.get("cert", False)),
-            body.get("cert_from") or None, body.get("cert_to") or None
+            body.get("cert_from") or None, body.get("cert_to") or None,
+            body.get("birthdate") or None,
+            bool(body.get("insurance", False)),
+            body.get("insurance_to") or None,
         ))
-        new_id = cur.fetchone()[0]
+        row = cur.fetchone()
         conn.commit()
         cur.close(); conn.close()
-        return ok({"id": new_id, "message": "Ученик добавлен"})
+        return ok({"id": row[0], "created_at": str(row[1]), "message": "Ученик добавлен"})
 
     # PUT — обновить ученика
     if method == "PUT":
@@ -114,28 +124,38 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return err("Нет прав", 403)
         cur.execute(f"""
-            UPDATE {S}.students SET name=%s, hall=%s, grp=%s, schedule=%s, phone=%s, iko=%s,
-            fee=%s, lvl=%s, cert=%s, cert_from=%s, cert_to=%s WHERE id=%s
+            UPDATE {S}.students SET
+              name=%s, hall=%s, hall2=%s, grp=%s, schedule=%s, phone=%s, iko=%s,
+              fee=%s, annual_fee_number=%s, lvl=%s,
+              cert=%s, cert_from=%s, cert_to=%s,
+              birthdate=%s, insurance=%s, insurance_to=%s
+            WHERE id=%s
         """, (
-            body.get("name"), body.get("hall") or None, body.get("grp") or None,
-            body.get("schedule") or None,
+            body.get("name"),
+            body.get("hall") or None, body.get("hall2") or None,
+            body.get("grp") or None, body.get("schedule") or None,
             body.get("phone") or None, body.get("iko") or None,
-            int(body.get("fee", 3000)), body.get("lvl") or None,
+            int(body.get("fee", 3000)),
+            body.get("annual_fee_number") or None,
+            body.get("lvl") or None,
             bool(body.get("cert", False)),
             body.get("cert_from") or None, body.get("cert_to") or None,
+            body.get("birthdate") or None,
+            bool(body.get("insurance", False)),
+            body.get("insurance_to") or None,
             sid
         ))
         conn.commit()
         cur.close(); conn.close()
         return ok({"message": "Обновлено"})
 
-    # DELETE
+    # DELETE — архивировать (не удалять физически), причина обязательна
     if method == "DELETE":
         sid = qs.get("id")
         if not sid:
             cur.close(); conn.close()
             return err("Нет id")
-        cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s", (sid,))
+        cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s AND archived=FALSE", (sid,))
         row = cur.fetchone()
         if not row:
             cur.close(); conn.close()
@@ -143,13 +163,17 @@ def handler(event: dict, context) -> dict:
         if role != "admin" and str(row[0]) != str(uid):
             cur.close(); conn.close()
             return err("Нет прав", 403)
-        cur.execute(f"DELETE FROM {S}.personal_sessions WHERE student_id=%s", (sid,))
-        cur.execute(f"DELETE FROM {S}.attendance WHERE student_id=%s", (sid,))
-        cur.execute(f"DELETE FROM {S}.payments WHERE student_id=%s", (sid,))
-        cur.execute(f"DELETE FROM {S}.students WHERE id=%s", (sid,))
+        reason = (body.get("reason") or "").strip()
+        if not reason:
+            cur.close(); conn.close()
+            return err("Укажите причину архивирования")
+        cur.execute(f"""
+            UPDATE {S}.students SET archived=TRUE, archive_reason=%s, archived_at=NOW()
+            WHERE id=%s
+        """, (reason, sid))
         conn.commit()
         cur.close(); conn.close()
-        return ok({"message": "Удалено"})
+        return ok({"message": "Ученик перемещён в архив"})
 
     cur.close(); conn.close()
     return err("Method not allowed", 405)

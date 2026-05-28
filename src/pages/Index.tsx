@@ -74,9 +74,9 @@ export default function Index() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="text-right hidden sm:block">
+            <div className="text-right">
               <div className="text-xs font-semibold text-gray-700">{user.full_name}</div>
-              <div className="text-[10px] text-gray-400">
+              <div className="text-[10px] text-gray-400 hidden sm:block">
                 {user.role === "admin" ? "Администратор" : `Тренер${user.hall ? ` · ${user.hall}` : ""}${user.schedule ? ` · ${user.schedule}` : ""}`}
               </div>
             </div>

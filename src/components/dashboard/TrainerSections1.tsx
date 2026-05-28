@@ -5,9 +5,13 @@ import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
 
+const todayMMDD = () => new Date().toISOString().slice(5, 10); // MM-DD
+
 const emptyForm = (user: AppUser) => ({
-  name: "", hall: user.hall || "", grp: "", schedule: user.schedule || "",
-  phone: "", iko: "", fee: 5000, lvl: "", cert: false, cert_from: "", cert_to: "",
+  name: "", hall: user.hall || "", hall2: "", grp: "", schedule: user.schedule || "",
+  phone: "", iko: "", fee: 5000, annual_fee_number: "", lvl: "",
+  cert: false, cert_from: "", cert_to: "",
+  birthdate: "", insurance: false, insurance_to: "",
 });
 
 // ─── STUDENTS ────────────────────────────────────────────────────────────────
@@ -19,6 +23,10 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const [showAdd, setShowAdd] = useState(false);
   const [editStudent, setEditStudent] = useState<Record<string, unknown> | null>(null);
+  const [archiveStudent, setArchiveStudent] = useState<Record<string, unknown> | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiving, setArchiving] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [form, setForm] = useState(emptyForm(user));
   const [editForm, setEditForm] = useState(emptyForm(user));
   const [saving, setSaving] = useState(false);
@@ -35,13 +43,28 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [filterHall, setFilterHall] = useState("");
 
   const today = todayStr();
-  const isPresent = (sid: number) => attData.some((a: Record<string, unknown>) => a.student_id === sid && a.present);
-  const isPaid = (sid: number) => payData.some((p: Record<string, unknown>) => p.student_id === sid && p.paid);
+  const todayMD = todayMMDD();
+  const isPresent = (sid: number) => (attData as Record<string, unknown>[]).some((a: Record<string, unknown>) => a.student_id === sid && a.present);
+  const isPaid = (sid: number) => (payData as Record<string, unknown>[]).some((p: Record<string, unknown>) => p.student_id === sid && p.paid);
   const isCertOk = (s: Record<string, unknown>) => s.cert && s.cert_to && (s.cert_to as string) >= today;
+  const isInsuranceOk = (s: Record<string, unknown>) => s.insurance && s.insurance_to && (s.insurance_to as string) >= today;
+  const isBirthday = (s: Record<string, unknown>) => {
+    if (!s.birthdate) return false;
+    return (s.birthdate as string).slice(5) === todayMD;
+  };
+  const isNew = (s: Record<string, unknown>) => {
+    if (!s.created_at) return false;
+    const created = new Date(s.created_at as string);
+    const diffDays = (Date.now() - created.getTime()) / 86400000;
+    return diffDays <= 30;
+  };
   const canEdit = user.role === "admin" || user.can_edit_journal !== false;
 
   const uniq = (field: string) => [...new Set((students as Record<string, unknown>[]).map(s => s[field] as string).filter(Boolean))];
-  const halls = uniq("hall");
+  const halls = [...new Set([
+    ...uniq("hall"),
+    ...uniq("hall2"),
+  ])].filter(Boolean);
   const grps = uniq("grp");
   const schedules = uniq("schedule");
 
@@ -49,7 +72,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     const q = search.toLowerCase();
     if (q && !(s.name as string)?.toLowerCase().includes(q)) return false;
     if (filterGrp && s.grp !== filterGrp) return false;
-    if (filterHall && s.hall !== filterHall) return false;
+    if (filterHall && s.hall !== filterHall && s.hall2 !== filterHall) return false;
     return true;
   });
 
@@ -70,6 +93,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       }
     } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
   };
+
   const markPay = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
     try {
@@ -85,6 +109,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       }
     } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
   };
+
   const addStudent = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
@@ -94,6 +119,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       setForm(emptyForm(user));
     } finally { setSaving(false); }
   };
+
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
@@ -102,25 +128,38 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       setEditStudent(null);
     } finally { setSaving(false); }
   };
+
   const openEdit = (s: Record<string, unknown>) => {
     setEditForm({
       name: (s.name as string) || "",
       hall: (s.hall as string) || "",
+      hall2: (s.hall2 as string) || "",
       grp: (s.grp as string) || "",
       schedule: (s.schedule as string) || "",
       phone: (s.phone as string) || "",
       iko: (s.iko as string) || "",
       fee: (s.fee as number) ?? 3000,
+      annual_fee_number: (s.annual_fee_number as string) || "",
       lvl: (s.lvl as string) || "",
       cert: Boolean(s.cert),
       cert_from: (s.cert_from as string) || "",
       cert_to: (s.cert_to as string) || "",
+      birthdate: (s.birthdate as string) || "",
+      insurance: Boolean(s.insurance),
+      insurance_to: (s.insurance_to as string) || "",
     });
     setEditStudent(s);
   };
-  const deleteStudent = async (id: number, name: string) => {
-    if (!window.confirm(`Удалить "${name}"?`)) return;
-    await studentsApi.remove(id); qc.invalidateQueries({ queryKey: ["students"] });
+
+  const confirmArchive = async () => {
+    if (!archiveReason.trim()) return;
+    setArchiving(true);
+    try {
+      await studentsApi.remove(archiveStudent!.id as number, archiveReason);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      setArchiveStudent(null);
+      setArchiveReason("");
+    } finally { setArchiving(false); }
   };
 
   if (isLoading) return <Loading />;
@@ -137,7 +176,13 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       )}
       <div className="flex items-center justify-between">
         <h1 className="section-title">Ученики <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
-        <PrimaryBtn onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
+        <div className="flex gap-2">
+          <button onClick={() => setShowArchive(!showArchive)}
+            className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+            <Icon name="Archive" size={13} />Архив
+          </button>
+          <PrimaryBtn onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
+        </div>
       </div>
 
       {/* Поиск */}
@@ -152,18 +197,13 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         <div className="flex flex-col gap-1">
           <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Зал</div>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setFilterHall("")}
+            <button onClick={() => setFilterHall("")}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${!filterHall ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={!filterHall ? { background: "hsl(0,72%,40%)" } : {}}>
-              Все
-            </button>
+              style={!filterHall ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
             {halls.map(h => (
               <button key={h} onClick={() => setFilterHall(filterHall === h ? "" : h)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterHall === h ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-                style={filterHall === h ? { background: "hsl(0,72%,40%)" } : {}}>
-                {h}
-              </button>
+                style={filterHall === h ? { background: "hsl(0,72%,40%)" } : {}}>{h}</button>
             ))}
           </div>
         </div>
@@ -174,18 +214,13 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         <div className="flex flex-col gap-1">
           <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Группа</div>
           <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setFilterGrp("")}
+            <button onClick={() => setFilterGrp("")}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${!filterGrp ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={!filterGrp ? { background: "hsl(0,72%,40%)" } : {}}>
-              Все
-            </button>
+              style={!filterGrp ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
             {grps.map(g => (
               <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterGrp === g ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-                style={filterGrp === g ? { background: "hsl(0,72%,40%)" } : {}}>
-                {g}
-              </button>
+                style={filterGrp === g ? { background: "hsl(0,72%,40%)" } : {}}>{g}</button>
             ))}
           </div>
         </div>
@@ -208,7 +243,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       {filtered.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <Icon name="Users" size={40} className="mx-auto mb-2 opacity-30" />
-          <p>{students.length === 0 ? "Нет учеников" : "Ничего не найдено"}</p>
+          <p>{(students as []).length === 0 ? "Нет учеников" : "Ничего не найдено"}</p>
         </div>
       )}
 
@@ -217,44 +252,66 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         const here = isPresent(sid);
         const paid = isPaid(sid);
         const certOk = isCertOk(s);
+        const insOk = isInsuranceOk(s);
+        const birthday = isBirthday(s);
+        const newStudent = isNew(s);
         const t = toggling.has(sid);
+
         return (
-          <div key={sid} className={`card-glass rounded-2xl overflow-hidden border-l-2 ${paid ? "border-l-green-500" : "border-l-red-400"}`}>
+          <div key={sid} className={`card-glass rounded-2xl overflow-hidden border-l-2 ${birthday ? "border-l-yellow-400" : paid ? "border-l-green-500" : "border-l-red-400"}`}
+            style={birthday ? { background: "linear-gradient(135deg, #fffbeb 0%, #fff 60%)" } : undefined}>
             <div className="p-3 flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-oswald font-bold text-gray-500 flex-shrink-0">{ini(s.name as string)}</div>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-oswald font-bold flex-shrink-0 ${birthday ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
+                {birthday ? "🎂" : ini(s.name as string)}
+              </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate">{s.name as string}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{[s.hall, s.grp, s.lvl].filter(Boolean).join(" · ")}</div>
+                <div className="flex items-center gap-1.5">
+                  <div className="font-semibold text-sm truncate">{s.name as string}</div>
+                  {newStudent && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: "hsl(265,60%,55%)" }}>NEW</span>}
+                  {birthday && <span className="text-[10px]">🎉</span>}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {[s.hall, s.hall2, s.grp, s.lvl].filter(Boolean).join(" · ")}
+                </div>
                 {s.schedule && <div className="text-xs text-gray-400 flex items-center gap-1"><Icon name="Clock" size={11} />{s.schedule as string}</div>}
+                {s.birthdate && <div className="text-xs text-gray-400 flex items-center gap-1"><Icon name="Cake" size={11} />{(s.birthdate as string).split("-").reverse().join(".")}</div>}
+                {s.created_at && <div className="text-[10px] text-gray-300 flex items-center gap-1 mt-0.5"><Icon name="CalendarPlus" size={10} />с {new Date(s.created_at as string).toLocaleDateString("ru")}</div>}
                 <div className="flex flex-wrap gap-1 mt-1.5">
-                  {s.cert ? (certOk ? <span className="badge-present">✓ Справка</span> : <span className="badge-absent">Просрочена</span>) : <span className="badge-absent">Нет справки</span>}
-                  {here ? <span className="badge-present">✅ Был</span> : <span className="badge-absent">❌ Нет</span>}
-                  {paid ? <span className="badge-paid">💰 Оплачен</span> : <span className="badge-overdue">✗ Не оплачен</span>}
+                  {s.cert
+                    ? (certOk ? <span className="badge-present">✓ Справка</span> : <span className="badge-absent">Справка просрочена</span>)
+                    : <span className="badge-absent">Нет справки</span>}
+                  {s.insurance
+                    ? (insOk ? <span className="badge-present">✓ Страховка</span> : <span className="badge-absent">Страховка просрочена</span>)
+                    : null}
+                  {s.annual_fee_number && <span className="badge-paid">№ {s.annual_fee_number as string}</span>}
                 </div>
               </div>
               <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
                 <button onClick={() => openEdit(s)} className="text-gray-400 hover:text-blue-500 transition-colors">
                   <Icon name="Pencil" size={14} />
                 </button>
-                <button onClick={() => deleteStudent(sid, s.name as string)} className="text-gray-300 hover:text-red-400 transition-colors">
-                  <Icon name="Trash2" size={14} />
+                <button onClick={() => { setArchiveStudent(s); setArchiveReason(""); }} className="text-gray-300 hover:text-red-400 transition-colors">
+                  <Icon name="Archive" size={14} />
                 </button>
               </div>
             </div>
+            {/* Кнопки действий: сначала Оплата, потом Присутствие */}
             <div className="flex border-t border-gray-100">
               <div className="flex-1 py-2 text-center">
-                {here
-                  ? <span className="text-xs text-green-600 font-semibold">✓ Посещение отмечено</span>
+                {paid
+                  ? <span className="text-xs text-green-600 font-semibold">✓ Оплата</span>
                   : canEdit
-                    ? <button disabled={t} onClick={() => markAtt(sid)} className="text-xs font-semibold transition-colors" style={{ color: "hsl(0,72%,40%)" }}>{t ? "..." : "✅ Отметить"}</button>
+                    ? <button disabled={t} onClick={() => markPay(sid)} className="text-xs font-semibold" style={{ color: "hsl(28,85%,42%)" }}>{t ? "..." : "💰 Оплатить"}</button>
                     : <span className="text-xs text-gray-300">—</span>}
               </div>
               <div className="w-px bg-gray-100" />
               <div className="flex-1 py-2 text-center">
-                {paid
-                  ? <span className="text-xs text-green-600 font-semibold">✓ Оплата отмечена</span>
+                {here
+                  ? <span className="text-xs font-semibold" style={{ color: "hsl(142,60%,38%)" }}>✅ Присутствует</span>
                   : canEdit
-                    ? <button disabled={t} onClick={() => markPay(sid)} className="text-xs font-semibold" style={{ color: "hsl(28,85%,42%)" }}>{t ? "..." : "💰 Оплатить"}</button>
+                    ? <button disabled={t} onClick={() => markAtt(sid)} className="text-xs font-semibold transition-colors" style={{ color: "hsl(0,72%,40%)" }}>
+                        {t ? "..." : <span className="flex items-center justify-center gap-1"><span style={{ color: "hsl(0,72%,40%)" }}>●</span> Отметить</span>}
+                      </button>
                     : <span className="text-xs text-gray-300">—</span>}
               </div>
             </div>
@@ -262,16 +319,32 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         );
       })}
 
+      {/* Архив */}
+      {showArchive && <ArchivedList user={user} />}
+
+      {/* Диалог архивирования */}
+      <BottomSheet open={!!archiveStudent} onClose={() => setArchiveStudent(null)} title={`Архивировать: ${archiveStudent?.name}`}>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gray-500">Ученик будет перемещён в архив. Укажите причину:</p>
+          <textarea
+            className={`${inputCls} resize-none`} rows={3}
+            placeholder="Причина (например: закончил занятия, переехал...)"
+            value={archiveReason} onChange={e => setArchiveReason(e.target.value)} />
+          <div className="flex gap-2">
+            <OutlineBtn onClick={() => setArchiveStudent(null)}>Отмена</OutlineBtn>
+            <PrimaryBtn onClick={confirmArchive} disabled={archiving || !archiveReason.trim()}>
+              {archiving ? "..." : "В архив"}
+            </PrimaryBtn>
+          </div>
+        </div>
+      </BottomSheet>
+
       {/* Добавить ученика */}
       <BottomSheet open={showAdd} onClose={() => setShowAdd(false)} title="Новый ученик">
         <datalist id="dl-halls">{halls.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-grps">{grps.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-schedules">{schedules.map(v => <option key={v} value={v} />)}</datalist>
-        <StudentForm
-          form={form} setForm={setForm}
-          onSubmit={addStudent} onCancel={() => setShowAdd(false)}
-          saving={saving} submitLabel="Сохранить"
-        />
+        <StudentForm form={form} setForm={setForm} onSubmit={addStudent} onCancel={() => setShowAdd(false)} saving={saving} submitLabel="Сохранить" />
       </BottomSheet>
 
       {/* Редактировать ученика */}
@@ -279,23 +352,62 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         <datalist id="dl-halls-e">{halls.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-grps-e">{grps.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-schedules-e">{schedules.map(v => <option key={v} value={v} />)}</datalist>
-        <StudentForm
-          form={editForm} setForm={setEditForm}
-          onSubmit={saveEdit} onCancel={() => setEditStudent(null)}
-          saving={saving} submitLabel="Сохранить изменения"
-          listSuffix="-e"
-        />
+        <StudentForm form={editForm} setForm={setEditForm} onSubmit={saveEdit} onCancel={() => setEditStudent(null)} saving={saving} submitLabel="Сохранить изменения" listSuffix="-e" />
       </BottomSheet>
+    </div>
+  );
+}
+
+// ─── ARCHIVED LIST ────────────────────────────────────────────────────────────
+function ArchivedList({ user }: { user: AppUser }) {
+  const { data: archived = [], isLoading } = useQuery({
+    queryKey: ["students-archived", user.id],
+    queryFn: () => studentsApi.listArchived(),
+  });
+  if (isLoading) return <Loading />;
+  if ((archived as []).length === 0) return (
+    <div className="text-center py-6 text-gray-400 text-sm">Архив пуст</div>
+  );
+  return (
+    <div className="card-glass rounded-2xl overflow-hidden">
+      <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+          <Icon name="Archive" size={12} />Архив ({(archived as []).length})
+        </div>
+      </div>
+      {(archived as Record<string, unknown>[]).map(s => (
+        <div key={s.id as number} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold text-gray-500">{s.name as string}</div>
+              <div className="text-xs text-gray-400">{[s.hall, s.grp].filter(Boolean).join(" · ")}</div>
+              {s.archive_reason && <div className="text-xs text-red-400 mt-0.5">Причина: {s.archive_reason as string}</div>}
+            </div>
+            <div className="text-[10px] text-gray-300 whitespace-nowrap">
+              {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 // ─── FORM ────────────────────────────────────────────────────────────────────
 type FormState = {
-  name: string; hall: string; grp: string; schedule: string;
-  phone: string; iko: string; fee: number; lvl: string;
+  name: string; hall: string; hall2: string; grp: string; schedule: string;
+  phone: string; iko: string; fee: number; annual_fee_number: string; lvl: string;
   cert: boolean; cert_from: string; cert_to: string;
+  birthdate: string; insurance: boolean; insurance_to: string;
 };
+
+function addMonths(dateStr: string, months: number): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
 function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitLabel, listSuffix = "" }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
@@ -305,30 +417,83 @@ function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitLabel, l
   submitLabel: string;
   listSuffix?: string;
 }) {
-  const f = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.type === "number" ? +e.target.value : e.target.value }));
+  const f = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm(p => ({ ...p, [k]: (e.target as HTMLInputElement).type === "checkbox" ? (e.target as HTMLInputElement).checked : (e.target as HTMLInputElement).type === "number" ? +(e.target as HTMLInputElement).value : e.target.value }));
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       <input className={inputCls} placeholder="Имя *" value={form.name} onChange={f("name")} required />
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Залы</div>
       <div className="grid grid-cols-2 gap-2">
-        <input className={inputCls} placeholder="Зал" list={`dl-halls${listSuffix}`} value={form.hall} onChange={f("hall")} />
+        <input className={inputCls} placeholder="Зал 1" list={`dl-halls${listSuffix}`} value={form.hall} onChange={f("hall")} />
+        <input className={inputCls} placeholder="Зал 2 (если есть)" list={`dl-halls${listSuffix}`} value={form.hall2} onChange={f("hall2")} />
+      </div>
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Группа и контакт</div>
+      <div className="grid grid-cols-2 gap-2">
         <input className={inputCls} placeholder="Группа" list={`dl-grps${listSuffix}`} value={form.grp} onChange={f("grp")} />
         <input className={inputCls} placeholder="Время группы" list={`dl-schedules${listSuffix}`} value={form.schedule} onChange={f("schedule")} />
         <input className={inputCls} placeholder="Телефон" value={form.phone} onChange={f("phone")} />
         <input className={inputCls} placeholder="IKO карта" value={form.iko} onChange={f("iko")} />
-        <input className={inputCls} placeholder="Абонемент ₽" type="number" value={form.fee} onChange={f("fee")} />
-        <input className={inputCls} placeholder="Уровень" value={form.lvl} onChange={f("lvl")} />
+        <input className={inputCls} placeholder="Уровень / пояс" value={form.lvl} onChange={f("lvl")} />
+        <input className={inputCls} placeholder="Дата рождения" type="date" value={form.birthdate} onChange={f("birthdate")} />
       </div>
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Оплата</div>
+      <div className="grid grid-cols-2 gap-2">
+        <input className={inputCls} placeholder="Абонемент ₽" type="number" value={form.fee} onChange={f("fee")} />
+        <input className={inputCls} placeholder="№ годового взноса" value={form.annual_fee_number} onChange={f("annual_fee_number")} />
+      </div>
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Медицинская справка</div>
       <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input type="checkbox" checked={form.cert} onChange={f("cert")} className="accent-red-600 w-4 h-4" />
-        Медицинская справка
+        Есть медицинская справка
       </label>
       {form.cert && (
-        <div className="grid grid-cols-2 gap-2">
-          <input className={inputCls} type="date" value={form.cert_from} onChange={f("cert_from")} />
-          <input className={inputCls} type="date" value={form.cert_to} onChange={f("cert_to")} />
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] text-gray-400 mb-1">Дата выдачи</div>
+              <input className={inputCls} type="date" value={form.cert_from} onChange={f("cert_from")} />
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-400 mb-1">Дата окончания</div>
+              <input className={inputCls} type="date" value={form.cert_to} onChange={f("cert_to")} />
+            </div>
+          </div>
+          {form.cert_from && (
+            <div className="flex gap-2">
+              <button type="button"
+                className="flex-1 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                onClick={() => setForm(p => ({ ...p, cert_to: addMonths(p.cert_from, 6) }))}>
+                + 6 месяцев
+              </button>
+              <button type="button"
+                className="flex-1 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                onClick={() => setForm(p => ({ ...p, cert_to: addMonths(p.cert_from, 12) }))}>
+                + 1 год
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Страховка</div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.insurance} onChange={f("insurance")} className="accent-red-600 w-4 h-4" />
+        Есть страховка
+      </label>
+      {form.insurance && (
+        <div className="flex flex-col gap-2">
+          <div>
+            <div className="text-[10px] text-gray-400 mb-1">Страховка действует до</div>
+            <input className={inputCls} type="date" value={form.insurance_to} onChange={f("insurance_to")} />
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 pt-2">
         <OutlineBtn onClick={onCancel}>Отмена</OutlineBtn>
         <PrimaryBtn type="submit" disabled={saving}>{saving ? "Сохранение..." : submitLabel}</PrimaryBtn>
@@ -358,9 +523,9 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
     <div className="flex flex-col gap-3">
       <h1 className="section-title">Оплата — {month}</h1>
       <div className="grid grid-cols-3 gap-2">
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{paidCount}</div><div className="text-[10px] text-gray-400">Оплатили</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-red-500">{total - paidCount}</div><div className="text-[10px] text-gray-400">Не оплатили</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{revenue.toLocaleString("ru")}</div><div className="text-[10px] text-gray-400">₽ собрано</div></div>
+        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-gray-700">{total}</div><div className="text-xs text-gray-400 mt-1">Всего</div></div>
+        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{paidCount}</div><div className="text-xs text-gray-400 mt-1">Оплатили</div></div>
+        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{revenue.toLocaleString("ru")} ₽</div><div className="text-xs text-gray-400 mt-1">Сбор</div></div>
       </div>
       {(payData as Record<string, unknown>[]).map(p => {
         const sid = p.student_id as number;

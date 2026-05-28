@@ -62,8 +62,13 @@ export const studentsApi = {
   update: (id: number, body: Record<string, unknown>) =>
     offlineMutate(`${URLS.students}?id=${id}`, "PUT", body, "students"),
 
-  remove: (id: number) =>
-    offlineMutate(`${URLS.students}?id=${id}`, "DELETE", undefined, "students"),
+  remove: (id: number, reason: string) =>
+    offlineMutate(`${URLS.students}?id=${id}`, "DELETE", { reason }, "students"),
+
+  listArchived: (trainerId?: number) => {
+    const url = `${URLS.students}?archived=1${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `students_archived_${trainerId ?? "me"}`);
+  },
 };
 
 // ── ATTENDANCE ────────────────────────────────────────────────

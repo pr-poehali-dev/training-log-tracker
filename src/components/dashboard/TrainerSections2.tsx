@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentsApi, personalApi, notesApi, reportsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
 
 // ─── PERSONAL ─────────────────────────────────────────────────────────────────
@@ -138,11 +138,6 @@ export function NotesSection({ user }: { user: AppUser }) {
 }
 
 // ─── REPORTS (TRAINER — NO REVENUE) ──────────────────────────────────────────
-interface TooltipP { active?: boolean; payload?: {color:string;value:number;dataKey:string}[]; label?: string }
-const ChartTip = ({ active, payload, label }: TooltipP) => {
-  if (!active || !payload?.length) return null;
-  return <div className="card-glass rounded-xl p-2 border border-gray-200 shadow text-xs"><p className="text-gray-400 mb-1">{label}</p>{payload.map(p => <p key={p.dataKey} style={{ color: p.color }} className="font-bold">{p.value}%</p>)}</div>;
-};
 
 export function ReportsSection({ user, month }: { user: AppUser; month: string }) {
   const { data, isLoading, error } = useQuery({ queryKey: ["reports", month, user.id], queryFn: () => reportsApi.get(month) });
@@ -152,7 +147,6 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
 
   const summary = data?.summary || {};
   const students: Record<string, unknown>[] = data?.students || [];
-  const chartData = students.map(s => ({ name: ini(s.name as string), pct: s.attendance_rate as number }));
 
   const exportCsv = () => {
     const headers = ["Ученик", "Зал", "Группа", "Был/Всего", "Перс.", "%", "Оплата"];
@@ -169,20 +163,7 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
         <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{summary.paid_count || 0}</div><div className="text-xs text-gray-400 mt-1">Оплатили</div></div>
         <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-red-500">{summary.unpaid_count || 0}</div><div className="text-xs text-gray-400 mt-1">Долг</div></div>
       </div>
-      {chartData.length > 0 && (
-        <div className="card-glass rounded-2xl p-4">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Посещаемость %</h2>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTip />} />
-              <Bar dataKey="pct" fill="hsl(0,72%,40%)" radius={[4, 4, 0, 0]} name="%" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+
       <div className="card-glass rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="bg-gray-50"><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Ученик</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Был/Всего</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Перс.</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">%</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Опл.</th></tr></thead>
