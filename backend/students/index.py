@@ -167,10 +167,22 @@ def handler(event: dict, context) -> dict:
         if not reason:
             cur.close(); conn.close()
             return err("Укажите причину архивирования")
+
+        cur.execute(f"SELECT name FROM {S}.students WHERE id=%s", (sid,))
+        student_name = (cur.fetchone() or ["?"])[0]
+        cur.execute(f"SELECT full_name FROM {S}.users WHERE id=%s", (uid,))
+        trainer_name = (cur.fetchone() or ["?"])[0]
+
         cur.execute(f"""
             UPDATE {S}.students SET archived=TRUE, archive_reason=%s, archived_at=NOW()
             WHERE id=%s
         """, (reason, sid))
+
+        msg = f"Тренер {trainer_name} перевёл ученика «{student_name}» в архив. Причина: {reason}"
+        cur.execute(f"SELECT id FROM {S}.users WHERE role='admin'")
+        for (admin_id,) in cur.fetchall():
+            cur.execute(f"INSERT INTO {S}.notifications (user_id, type, message) VALUES (%s,'archive',%s)", (admin_id, msg))
+
         conn.commit()
         cur.close(); conn.close()
         return ok({"message": "Ученик перемещён в архив"})

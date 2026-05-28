@@ -1,10 +1,11 @@
 import { offlineGet, offlineMutate } from "./offlineApi";
 
 const URLS = {
-  auth:     "https://functions.poehali.dev/d83b508f-5f51-4ba2-b5e0-df30b382e5e0",
-  journal:  "https://functions.poehali.dev/34ed4bb5-c29f-4428-a47f-7e00a87d4b8b",
-  reports:  "https://functions.poehali.dev/6c56dc4f-118e-4da5-83c3-bb24163222d5",
-  students: "https://functions.poehali.dev/dc890787-2476-4a3d-964e-94efd4210b0f",
+  auth:          "https://functions.poehali.dev/d83b508f-5f51-4ba2-b5e0-df30b382e5e0",
+  journal:       "https://functions.poehali.dev/34ed4bb5-c29f-4428-a47f-7e00a87d4b8b",
+  reports:       "https://functions.poehali.dev/6c56dc4f-118e-4da5-83c3-bb24163222d5",
+  students:      "https://functions.poehali.dev/dc890787-2476-4a3d-964e-94efd4210b0f",
+  notifications: "https://functions.poehali.dev/8bafc972-b60d-47d5-af19-dd9811d522ae",
 };
 
 function getUser() {
@@ -154,6 +155,13 @@ export const notesApi = {
 
   remove: (id: number) =>
     offlineMutate(`${URLS.journal}?section=notes&id=${id}`, "DELETE", undefined, "notes"),
+};
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────
+export const notificationsApi = {
+  list: () => req(URLS.notifications),
+  markRead: (id?: number) => req(`${URLS.notifications}?action=mark_read`, { method: "POST", body: JSON.stringify(id ? { id } : {}) }),
+  notifyJournalFilled: (date: string) => req(`${URLS.journal}?section=notify`, { method: "POST", body: JSON.stringify({ action: "journal_filled", date }) }),
 };
 
 // ── REPORTS ───────────────────────────────────────────────────

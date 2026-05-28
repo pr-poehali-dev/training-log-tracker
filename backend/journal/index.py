@@ -305,5 +305,24 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return ok({"message": "Удалено"})
 
+    # ──── NOTIFY (тренер отправляет уведомление "журнал заполнен") ────────────
+    if section == "notify" and method == "POST":
+        action = body.get("action", "journal_filled")
+        date = body.get("date", "")
+        cur.execute(f"SELECT full_name FROM {S}.users WHERE id=%s", (uid,))
+        trainer_name = (cur.fetchone() or ["?"])[0]
+
+        if action == "journal_filled":
+            msg = f"Тренер {trainer_name} заполнил журнал за {date}."
+        else:
+            msg = f"Тренер {trainer_name}: {body.get('message','')}"
+
+        cur.execute(f"SELECT id FROM {S}.users WHERE role='admin'")
+        for (admin_id,) in cur.fetchall():
+            cur.execute(f"INSERT INTO {S}.notifications (user_id, type, message) VALUES (%s,'journal',%s)", (admin_id, msg))
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"message": "Уведомление отправлено"})
+
     cur.close(); conn.close()
     return err("Not found", 404)

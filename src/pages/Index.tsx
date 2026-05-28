@@ -5,6 +5,7 @@ import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import OfflineBanner from "@/components/shared/OfflineBanner";
 import InstallBanner from "@/components/shared/InstallBanner";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 export interface AppUser {
   id: number;
@@ -83,6 +84,7 @@ export default function Index() {
             {user.role === "admin" && (
               <span className="badge-overdue text-[10px] px-2 py-0.5">ADMIN</span>
             )}
+            <NotificationBell user={user} date={new Date().toISOString().slice(0, 10)} />
             <button onClick={() => setLogoutConfirm(true)}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors border border-gray-200 bg-gray-50 hover:bg-gray-100">
               <Icon name="LogOut" size={15} />
