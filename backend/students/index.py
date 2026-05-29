@@ -88,8 +88,8 @@ def handler(event: dict, context) -> dict:
             INSERT INTO {S}.students
               (trainer_id, name, hall, hall2, grp, schedule, phone, iko, fee,
                annual_fee_number, lvl, cert, cert_from, cert_to,
-               birthdate, insurance, insurance_to)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at
+               birthdate, insurance, insurance_to, has_sport, sport_schedule)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at
         """, (
             uid, name,
             body.get("hall") or None, body.get("hall2") or None,
@@ -103,6 +103,8 @@ def handler(event: dict, context) -> dict:
             body.get("birthdate") or None,
             bool(body.get("insurance", False)),
             body.get("insurance_to") or None,
+            bool(body.get("has_sport", False)),
+            body.get("sport_schedule") or None,
         ))
         row = cur.fetchone()
         conn.commit()
@@ -128,7 +130,8 @@ def handler(event: dict, context) -> dict:
               name=%s, hall=%s, hall2=%s, grp=%s, schedule=%s, phone=%s, iko=%s,
               fee=%s, annual_fee_number=%s, lvl=%s,
               cert=%s, cert_from=%s, cert_to=%s,
-              birthdate=%s, insurance=%s, insurance_to=%s
+              birthdate=%s, insurance=%s, insurance_to=%s,
+              has_sport=%s, sport_schedule=%s
             WHERE id=%s
         """, (
             body.get("name"),
@@ -143,6 +146,8 @@ def handler(event: dict, context) -> dict:
             body.get("birthdate") or None,
             bool(body.get("insurance", False)),
             body.get("insurance_to") or None,
+            bool(body.get("has_sport", False)),
+            body.get("sport_schedule") or None,
             sid
         ))
         conn.commit()

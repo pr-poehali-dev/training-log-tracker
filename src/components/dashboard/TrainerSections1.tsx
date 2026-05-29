@@ -12,6 +12,7 @@ const emptyForm = (user: AppUser) => ({
   phone: "", iko: "", fee: 5000, annual_fee_number: "", lvl: "",
   cert: false, cert_from: "", cert_to: "",
   birthdate: "", insurance: false, insurance_to: "",
+  has_sport: false, sport_schedule: "",
 });
 
 // ─── STUDENTS ────────────────────────────────────────────────────────────────
@@ -31,6 +32,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [editForm, setEditForm] = useState(emptyForm(user));
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<Set<number>>(new Set());
+  const [togglingGt, setTogglingGt] = useState<Set<string>>(new Set());
   const [offlineToast, setOfflineToast] = useState("");
 
   const showToast = (msg: string) => {
@@ -44,7 +46,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const today = todayStr();
   const todayMD = todayMMDD();
-  const isPresent = (sid: number) => (attData as Record<string, unknown>[]).some((a: Record<string, unknown>) => a.student_id === sid && a.present);
+  const isPresent = (sid: number, groupType: "main" | "sport" = "main") =>
+    (attData as Record<string, unknown>[]).some((a: Record<string, unknown>) =>
+      a.student_id === sid && a.present && (a.group_type ?? "main") === groupType);
   const isPaid = (sid: number) => (payData as Record<string, unknown>[]).some((p: Record<string, unknown>) => p.student_id === sid && p.paid);
   const isCertOk = (s: Record<string, unknown>) => s.cert && s.cert_to && (s.cert_to as string) >= today;
   const isInsuranceOk = (s: Record<string, unknown>) => s.insurance && s.insurance_to && (s.insurance_to as string) >= today;
@@ -76,22 +80,23 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     return true;
   });
 
-  const markAtt = async (sid: number) => {
-    setToggling(prev => new Set([...prev, sid]));
+  const markAtt = async (sid: number, groupType: "main" | "sport") => {
+    const key = `${sid}_${groupType}`;
+    setTogglingGt(prev => new Set([...prev, key]));
     try {
-      const res = await attendanceApi.mark({ student_id: sid, date, present: true });
+      const res = await attendanceApi.mark({ student_id: sid, date, present: true, group_type: groupType });
       if (res?.offline) {
         showToast("✓ Посещение сохранено (офлайн)");
         qc.setQueryData(["att-date", date, user.id], (old: Record<string, unknown>[] | undefined) => {
           const arr = old || [];
-          if (arr.some(a => a.student_id === sid && a.present)) return arr;
-          return [...arr, { student_id: sid, date, present: true }];
+          if (arr.some(a => a.student_id === sid && a.group_type === groupType && a.present)) return arr;
+          return [...arr, { student_id: sid, date, present: true, group_type: groupType }];
         });
       } else {
         qc.invalidateQueries({ queryKey: ["att-date"] });
         qc.invalidateQueries({ queryKey: ["att-month"] });
       }
-    } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+    } finally { setTogglingGt(prev => { const n = new Set(prev); n.delete(key); return n; }); }
   };
 
   const markPay = async (sid: number) => {
@@ -147,6 +152,8 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       birthdate: (s.birthdate as string) || "",
       insurance: Boolean(s.insurance),
       insurance_to: (s.insurance_to as string) || "",
+      has_sport: Boolean(s.has_sport),
+      sport_schedule: (s.sport_schedule as string) || "",
     });
     setEditStudent(s);
   };
@@ -249,7 +256,6 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
       {filtered.map(s => {
         const sid = s.id as number;
-        const here = isPresent(sid);
         const paid = isPaid(sid);
         const certOk = isCertOk(s);
         const insOk = isInsuranceOk(s);
@@ -295,8 +301,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
                 </button>
               </div>
             </div>
-            {/* Кнопки действий: сначала Оплата, потом Присутствие */}
+            {/* Кнопки действий */}
             <div className="flex border-t border-gray-100">
+              {/* Оплата */}
               <div className="flex-1 py-2 text-center">
                 {paid
                   ? <span className="text-xs text-green-600 font-semibold">✓ Оплата</span>
@@ -305,15 +312,39 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
                     : <span className="text-xs text-gray-300">—</span>}
               </div>
               <div className="w-px bg-gray-100" />
+              {/* Основная группа */}
               <div className="flex-1 py-2 text-center">
-                {here
-                  ? <span className="text-xs font-semibold" style={{ color: "hsl(142,60%,38%)" }}>✅ Присутствует</span>
+                {isPresent(sid, "main")
+                  ? <span className="text-xs font-semibold" style={{ color: "hsl(142,60%,38%)" }}>✅ Осн.</span>
                   : canEdit
-                    ? <button disabled={t} onClick={() => markAtt(sid)} className="text-xs font-semibold transition-colors" style={{ color: "hsl(0,72%,40%)" }}>
-                        {t ? "..." : <span className="flex items-center justify-center gap-1"><span style={{ color: "hsl(0,72%,40%)" }}>●</span> Отметить</span>}
+                    ? <button
+                        disabled={togglingGt.has(`${sid}_main`)}
+                        onClick={() => markAtt(sid, "main")}
+                        className="text-xs font-semibold transition-colors"
+                        style={{ color: "hsl(0,72%,40%)" }}>
+                        {togglingGt.has(`${sid}_main`) ? "..." : "● Осн."}
                       </button>
                     : <span className="text-xs text-gray-300">—</span>}
               </div>
+              {/* Спортивная группа — только если has_sport */}
+              {s.has_sport && (
+                <>
+                  <div className="w-px bg-gray-100" />
+                  <div className="flex-1 py-2 text-center">
+                    {isPresent(sid, "sport")
+                      ? <span className="text-xs font-semibold" style={{ color: "hsl(200,70%,38%)" }}>✅ Спорт</span>
+                      : canEdit
+                        ? <button
+                            disabled={togglingGt.has(`${sid}_sport`)}
+                            onClick={() => markAtt(sid, "sport")}
+                            className="text-xs font-semibold transition-colors"
+                            style={{ color: "hsl(200,70%,45%)" }}>
+                            {togglingGt.has(`${sid}_sport`) ? "..." : "● Спорт"}
+                          </button>
+                        : <span className="text-xs text-gray-300">—</span>}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         );
@@ -399,6 +430,7 @@ type FormState = {
   phone: string; iko: string; fee: number; annual_fee_number: string; lvl: string;
   cert: boolean; cert_from: string; cert_to: string;
   birthdate: string; insurance: boolean; insurance_to: string;
+  has_sport: boolean; sport_schedule: string;
 };
 
 function addMonths(dateStr: string, months: number): string {
@@ -494,6 +526,18 @@ function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitLabel, l
         </div>
       )}
 
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Спортивная группа</div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.has_sport} onChange={f("has_sport")} className="accent-blue-600 w-4 h-4" />
+        Ходит в спортивную группу
+      </label>
+      {form.has_sport && (
+        <div>
+          <div className="text-[10px] text-gray-400 mb-1">Расписание спортивной группы</div>
+          <input className={inputCls} placeholder="Например: вт/чт 19:00" value={form.sport_schedule} onChange={f("sport_schedule")} />
+        </div>
+      )}
+
       <div className="flex gap-2 pt-2">
         <OutlineBtn onClick={onCancel}>Отмена</OutlineBtn>
         <PrimaryBtn type="submit" disabled={saving}>{saving ? "Сохранение..." : submitLabel}</PrimaryBtn>
@@ -555,11 +599,19 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
 
   if (isLoading) return <Loading />;
 
+  const att = attMonth as Record<string, unknown>[];
   const totalTrainings = user.trainings_per_month ?? 13;
-  const days = [...new Set((attMonth as Record<string, unknown>[]).map(a => a.date as string))].sort();
-  const presentOn = (sid: number, d: string) =>
-    (attMonth as Record<string, unknown>[]).some(a => a.student_id === sid && a.date === d && a.present);
-  const total = (sid: number) => days.filter(d => presentOn(sid, d)).length;
+
+  // Уникальные дни для каждого типа
+  const daysMain  = [...new Set(att.filter(a => (a.group_type ?? "main") === "main").map(a => a.date as string))].sort();
+  const daysSport = [...new Set(att.filter(a => a.group_type === "sport").map(a => a.date as string))].sort();
+  const allDays   = [...new Set([...daysMain, ...daysSport])].sort();
+
+  const presentOn = (sid: number, d: string, gt: "main" | "sport") =>
+    att.some(a => a.student_id === sid && a.date === d && a.present && (a.group_type ?? "main") === gt);
+
+  const countMain  = (sid: number) => daysMain.filter(d => presentOn(sid, d, "main")).length;
+  const countSport = (sid: number) => daysSport.filter(d => presentOn(sid, d, "sport")).length;
 
   const saveTpm = async () => {
     setSavingTpm(true);
@@ -572,52 +624,95 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
     } finally { setSavingTpm(false); }
   };
 
+  const hasSportStudents = (students as Record<string, unknown>[]).some(s => s.has_sport);
+
   return (
     <div className="flex flex-col gap-3">
       <h1 className="section-title">Посещения — {month}</h1>
-      <div className="flex gap-2">
-        <div className="stat-card flex-1 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(0,72%,97%)" }}><Icon name="CalendarCheck" size={20} style={{ color: "hsl(0,72%,40%)" }} /></div>
-          <div><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{days.length}</div><div className="text-xs text-gray-400">Проведено занятий</div></div>
+
+      {/* Итоговые счётчики */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="stat-card text-center">
+          <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{daysMain.length}</div>
+          <div className="text-xs text-gray-400">Осн. занятий</div>
         </div>
-        <div className="stat-card flex-1 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-50"><Icon name="Target" size={20} className="text-gray-400" /></div>
+        {hasSportStudents && (
+          <div className="stat-card text-center">
+            <div className="text-xl font-oswald font-bold" style={{ color: "hsl(200,70%,42%)" }}>{daysSport.length}</div>
+            <div className="text-xs text-gray-400">Спорт занятий</div>
+          </div>
+        )}
+        <div className="stat-card text-center flex-1">
           <div className="flex-1">
             {editTpm ? (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center justify-center gap-1">
                 <input type="number" min={1} max={31} value={tpm} onChange={e => setTpm(+e.target.value)}
-                  className="w-14 bg-gray-50 border border-gray-200 rounded px-2 py-1 text-sm font-bold text-center focus:outline-none focus:border-red-400" />
-                <button onClick={saveTpm} disabled={savingTpm} className="text-xs font-bold px-2 py-1 rounded text-white" style={{ background: "hsl(0,72%,40%)" }}>{savingTpm ? "..." : "✓"}</button>
-                <button onClick={() => setEditTpm(false)} className="text-xs text-gray-400 px-1">✕</button>
+                  className="w-12 bg-gray-50 border border-gray-200 rounded px-1 py-1 text-sm font-bold text-center focus:outline-none focus:border-red-400" />
+                <button onClick={saveTpm} disabled={savingTpm} className="text-xs font-bold px-1.5 py-1 rounded text-white" style={{ background: "hsl(0,72%,40%)" }}>{savingTpm ? "..." : "✓"}</button>
+                <button onClick={() => setEditTpm(false)} className="text-xs text-gray-400">✕</button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-1">
                 <div className="text-xl font-oswald font-bold text-gray-700">{totalTrainings}</div>
-                <button onClick={() => { setTpm(totalTrainings); setEditTpm(true); }} className="text-gray-300 hover:text-gray-500"><Icon name="Pencil" size={13} /></button>
+                <button onClick={() => { setTpm(totalTrainings); setEditTpm(true); }} className="text-gray-300 hover:text-gray-500"><Icon name="Pencil" size={12} /></button>
               </div>
             )}
-            <div className="text-xs text-gray-400">Занятий в месяце (план)</div>
+            <div className="text-xs text-gray-400">План/мес</div>
           </div>
         </div>
       </div>
+
+      {/* Карточки учеников */}
       {(students as Record<string, unknown>[]).map(s => {
         const sid = s.id as number;
-        const cnt = total(sid);
-        const pct = Math.min(100, totalTrainings ? Math.round(cnt / totalTrainings * 100) : 0);
+        const hasSport = Boolean(s.has_sport);
+        const cntMain  = countMain(sid);
+        const cntSport = hasSport ? countSport(sid) : 0;
+        const cntTotal = cntMain + cntSport;
+        const pct = Math.min(100, totalTrainings ? Math.round(cntMain / totalTrainings * 100) : 0);
+
         return (
           <div key={sid} className="card-glass rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-oswald font-bold text-gray-500">{ini(s.name as string)}</div>
-              <div className="flex-1"><div className="text-sm font-semibold">{s.name as string}</div><div className="text-xs text-gray-400">{cnt} из {totalTrainings} занятий · {pct}%</div></div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">{s.name as string}</div>
+                <div className="text-xs text-gray-400">
+                  Осн: {cntMain}/{totalTrainings} ({pct}%)
+                  {hasSport && <span className="ml-2" style={{ color: "hsl(200,70%,42%)" }}>· Спорт: {cntSport}</span>}
+                  {hasSport && <span className="text-gray-300 ml-1">· Всего: {cntTotal}</span>}
+                </div>
+              </div>
               <div className="text-lg font-oswald font-bold" style={{ color: pct >= 70 ? "hsl(142,60%,40%)" : "hsl(0,72%,40%)" }}>{pct}%</div>
             </div>
-            <div className="flex flex-wrap gap-1">
-              {days.map(d => (
-                <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${presentOn(sid, d) ? "bg-green-100 text-green-700" : "bg-red-50 text-red-400"}`}>
-                  {d.slice(5)}
-                </span>
-              ))}
-            </div>
+
+            {/* Дни основной группы */}
+            {daysMain.length > 0 && (
+              <div className="mb-1.5">
+                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-1">Основная</div>
+                <div className="flex flex-wrap gap-1">
+                  {daysMain.map(d => (
+                    <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${presentOn(sid, d, "main") ? "bg-green-100 text-green-700" : "bg-red-50 text-red-300"}`}>
+                      {d.slice(5)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Дни спортивной группы — только для тех у кого has_sport */}
+            {hasSport && daysSport.length > 0 && (
+              <div>
+                <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: "hsl(200,70%,45%)" }}>Спортивная</div>
+                <div className="flex flex-wrap gap-1">
+                  {daysSport.map(d => (
+                    <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${presentOn(sid, d, "sport") ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-300"}`}>
+                      {d.slice(5)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

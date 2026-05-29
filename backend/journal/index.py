@@ -55,14 +55,16 @@ def handler(event: dict, context) -> dict:
 
             if date:
                 cur.execute(f"""
-                    SELECT a.id, a.student_id, s.name, a.date, a.present, a.trainer_id
+                    SELECT a.id, a.student_id, s.name, a.date, a.present, a.trainer_id,
+                           COALESCE(a.group_type, 'main') as group_type
                     FROM {S}.attendance a JOIN {S}.students s ON s.id=a.student_id
                     WHERE a.date=%s AND s.trainer_id=%s
                     ORDER BY s.name
                 """, (date, trainer_filter))
             elif month:
                 cur.execute(f"""
-                    SELECT a.id, a.student_id, s.name, a.date, a.present, a.trainer_id
+                    SELECT a.id, a.student_id, s.name, a.date, a.present, a.trainer_id,
+                           COALESCE(a.group_type, 'main') as group_type
                     FROM {S}.attendance a JOIN {S}.students s ON s.id=a.student_id
                     WHERE to_char(a.date,'YYYY-MM')=%s AND s.trainer_id=%s
                     ORDER BY a.date, s.name
@@ -84,6 +86,9 @@ def handler(event: dict, context) -> dict:
             student_id = body.get("student_id")
             date       = body.get("date")
             present    = bool(body.get("present", True))
+            group_type = body.get("group_type", "main")
+            if group_type not in ("main", "sport"):
+                group_type = "main"
 
             if not student_id or not date:
                 cur.close(); conn.close()
@@ -97,17 +102,17 @@ def handler(event: dict, context) -> dict:
 
             # тренер не может снять уже поставленную отметку
             if role == "trainer":
-                cur.execute(f"SELECT present FROM {S}.attendance WHERE student_id=%s AND date=%s", (student_id, date))
+                cur.execute(f"SELECT present FROM {S}.attendance WHERE student_id=%s AND date=%s AND group_type=%s", (student_id, date, group_type))
                 existing = cur.fetchone()
                 if existing and existing[0] and not present:
                     cur.close(); conn.close()
                     return err("Нельзя снять уже поставленное посещение", 403)
 
             cur.execute(f"""
-                INSERT INTO {S}.attendance (student_id, trainer_id, date, present)
-                VALUES (%s,%s,%s,%s)
-                ON CONFLICT (student_id, date) DO UPDATE SET present=EXCLUDED.present
-            """, (student_id, uid, date, present))
+                INSERT INTO {S}.attendance (student_id, trainer_id, date, present, group_type)
+                VALUES (%s,%s,%s,%s,%s)
+                ON CONFLICT (student_id, date, group_type) DO UPDATE SET present=EXCLUDED.present
+            """, (student_id, uid, date, present, group_type))
             conn.commit()
             cur.close(); conn.close()
             return ok({"message": "Сохранено"})

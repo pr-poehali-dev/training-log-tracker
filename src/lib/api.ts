@@ -85,18 +85,19 @@ export const attendanceApi = {
     return offlineGet(url, `att_month_${month}_${trainerId ?? "me"}`);
   },
 
-  mark: (body: { student_id: number; date: string; present: boolean }) => {
+  mark: (body: { student_id: number; date: string; present: boolean; group_type?: string }) => {
     const month = body.date.slice(0, 7);
+    const gt = body.group_type ?? "main";
     const patchFn = (cached: unknown) => {
       const arr = (cached as Record<string, unknown>[]) || [];
-      const exists = arr.find(a => a.student_id === body.student_id && a.date === body.date);
-      if (exists) return arr.map(a => a.student_id === body.student_id && a.date === body.date ? { ...a, present: body.present } : a);
-      return [...arr, { student_id: body.student_id, date: body.date, present: body.present }];
+      const exists = arr.find(a => a.student_id === body.student_id && a.date === body.date && a.group_type === gt);
+      if (exists) return arr.map(a => a.student_id === body.student_id && a.date === body.date && a.group_type === gt ? { ...a, present: body.present } : a);
+      return [...arr, { student_id: body.student_id, date: body.date, present: body.present, group_type: gt }];
     };
     return offlineMutate(
       `${URLS.journal}?section=attendance`,
       "POST",
-      body,
+      { ...body, group_type: gt },
       `att_date_${body.date}_me`,
       patchFn,
       [{ key: `att_month_${month}_me`, fn: patchFn }],
