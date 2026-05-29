@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApi, studentsApi, attendanceApi, paymentsApi, reportsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const monStr = () => new Date().toISOString().slice(0, 7);
+const monStr  = () => new Date().toISOString().slice(0, 7);
+const todayMMDD = () => new Date().toISOString().slice(5, 10);
 const ini = (n: string) => n.split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase();
 const inputCls = "w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-200";
 
@@ -18,6 +18,16 @@ function OutlineBtn({ children, onClick }: { children: React.ReactNode; onClick?
 }
 function Loading() {
   return <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2"><Icon name="Loader2" size={18} className="animate-spin" />Загрузка...</div>;
+}
+
+// Простой CSS-бар прогресса
+function MiniBar({ value, max, color = "hsl(0,72%,40%)" }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.min(100, Math.round(value / max * 100)) : 0;
+  return (
+    <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
+      <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
 }
 
 // ─── ТРЕНЕРЫ ──────────────────────────────────────────────────────────────────
@@ -127,16 +137,13 @@ function TrainersTab({ user }: { user: AppUser }) {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center gap-1">
-                      <label className="text-xs text-gray-500 whitespace-nowrap">Занятий/мес:</label>
+                      <label className="text-xs text-gray-500 whitespace-nowrap">Зан./мес:</label>
                       <input type="number" min={1} max={31} className={inputCls} value={editForm.trainings_per_month} onChange={e => setEditForm(p => ({ ...p, trainings_per_month: +e.target.value }))} />
                     </div>
                     <input className={inputCls} type="password" placeholder="Новый пароль" value={editForm.password} onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))} />
                   </div>
                   {editErr && <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">{editErr}</div>}
-                  <div className="flex gap-2 pt-1">
-                    <OutlineBtn onClick={() => setEditId(null)}>Отмена</OutlineBtn>
-                    <PrimaryBtn type="submit" disabled={editSaving}>{editSaving ? "..." : "Сохранить"}</PrimaryBtn>
-                  </div>
+                  <div className="flex gap-2"><OutlineBtn onClick={() => setEditId(null)}>Отмена</OutlineBtn><PrimaryBtn type="submit" disabled={editSaving}>{editSaving ? "..." : "Сохранить"}</PrimaryBtn></div>
                 </form>
               ) : (
                 <>
@@ -144,14 +151,9 @@ function TrainersTab({ user }: { user: AppUser }) {
                   <div className="text-xs text-gray-400">@{t.username as string}{t.hall ? ` · ${t.hall}` : ""}</div>
                   {t.schedule && <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"><Icon name="Clock" size={11} />{t.schedule as string}</div>}
                   <div className="text-[10px] text-gray-300 mt-0.5">с {(t.created_at as string)?.slice(0, 10)} · {t.trainings_per_month as number} зан./мес.</div>
-                  <button
-                    onClick={() => togglePerm(t.id as number)}
-                    disabled={toggling.has(t.id as number)}
+                  <button onClick={() => togglePerm(t.id as number)} disabled={toggling.has(t.id as number)}
                     className="mt-2 flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 transition-all disabled:opacity-50"
-                    style={{
-                      background: t.can_edit_journal ? "hsl(142,60%,93%)" : "hsl(0,0%,93%)",
-                      color: t.can_edit_journal ? "hsl(142,60%,30%)" : "hsl(0,0%,45%)",
-                    }}>
+                    style={{ background: t.can_edit_journal ? "hsl(142,60%,93%)" : "hsl(0,0%,93%)", color: t.can_edit_journal ? "hsl(142,60%,30%)" : "hsl(0,0%,45%)" }}>
                     <Icon name={t.can_edit_journal ? "ShieldCheck" : "ShieldOff"} size={12} />
                     {t.can_edit_journal ? "Может вносить данные" : "Только просмотр"}
                   </button>
@@ -160,14 +162,8 @@ function TrainersTab({ user }: { user: AppUser }) {
             </div>
             {editId !== (t.id as number) && (
               <div className="flex flex-col gap-1 flex-shrink-0">
-                <button onClick={() => { setEditId(t.id as number); setEditForm(emptyEdit(t)); setEditErr(""); }}
-                  className="text-gray-300 hover:text-blue-400 transition-colors p-1">
-                  <Icon name="Pencil" size={15} />
-                </button>
-                <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)}
-                  className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 p-1">
-                  <Icon name="Trash2" size={15} />
-                </button>
+                <button onClick={() => { setEditId(t.id as number); setEditForm(emptyEdit(t)); setEditErr(""); }} className="text-gray-300 hover:text-blue-400 transition-colors p-1"><Icon name="Pencil" size={15} /></button>
+                <button onClick={() => del(t.id as number, t.full_name as string)} disabled={deleting.has(t.id as number)} className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 p-1"><Icon name="Trash2" size={15} /></button>
               </div>
             )}
           </div>
@@ -183,17 +179,33 @@ function DataTab() {
   const [selectedTrainer, setSelectedTrainer] = useState<number | null>(null);
   const [date, setDate] = useState(todayStr());
   const [month, setMonth] = useState(monStr());
+  const [showArchive, setShowArchive] = useState(false);
   const qc = useQueryClient();
+
+  const today = todayStr();
+  const todayMD = todayMMDD();
 
   const { data: trainers = [] } = useQuery({ queryKey: ["trainers"], queryFn: () => authApi.trainers() });
   const enabled = selectedTrainer !== null;
-  const { data: students = [], isLoading: sLoad } = useQuery({ queryKey: ["students-admin", selectedTrainer], queryFn: () => studentsApi.list(selectedTrainer!), enabled });
+  const { data: students = [], isLoading: sLoad } = useQuery({
+    queryKey: ["students-admin", selectedTrainer],
+    queryFn: () => studentsApi.list(selectedTrainer!),
+    enabled,
+  });
+  const { data: archived = [] } = useQuery({
+    queryKey: ["students-archived-admin", selectedTrainer],
+    queryFn: () => studentsApi.listArchived(selectedTrainer!),
+    enabled: enabled && showArchive,
+  });
   const { data: attData = [] } = useQuery({ queryKey: ["att-admin", date, selectedTrainer], queryFn: () => attendanceApi.byDate(date, selectedTrainer!), enabled });
   const { data: payData = [] } = useQuery({ queryKey: ["pay-admin", month, selectedTrainer], queryFn: () => paymentsApi.byMonth(month, selectedTrainer!), enabled });
 
   const [toggling, setToggling] = useState<Set<string>>(new Set());
   const isPresent = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present);
   const isPaid = (sid: number) => (payData as Record<string, unknown>[]).some(p => p.student_id === sid && p.paid);
+  const isBirthday = (s: Record<string, unknown>) => s.birthdate && (s.birthdate as string).slice(5) === todayMD;
+  const isCertOk = (s: Record<string, unknown>) => s.cert_to && (s.cert_to as string) >= today;
+  const isInsOk = (s: Record<string, unknown>) => s.insurance && s.insurance_to && (s.insurance_to as string) >= today;
 
   const toggleAtt = async (sid: number, current: boolean) => {
     const k = `a${sid}`;
@@ -210,7 +222,16 @@ function DataTab() {
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 pb-24">
-      <h1 className="section-title">Данные</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="section-title">Данные</h1>
+        {enabled && (
+          <button onClick={() => setShowArchive(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${showArchive ? "border-orange-300 bg-orange-50 text-orange-600" : "border-gray-200 bg-white text-gray-500"}`}>
+            <Icon name="Archive" size={13} />Архив
+          </button>
+        )}
+      </div>
+
       <div className="card-glass rounded-2xl p-3 flex flex-col gap-2">
         <select className={inputCls} value={selectedTrainer ?? ""} onChange={e => setSelectedTrainer(e.target.value ? +e.target.value : null)}>
           <option value="">Выберите тренера...</option>
@@ -224,49 +245,109 @@ function DataTab() {
 
       {!enabled && <div className="text-center py-10 text-gray-400"><Icon name="Database" size={40} className="mx-auto mb-2 opacity-20" /><p>Выберите тренера</p></div>}
       {enabled && sLoad && <Loading />}
+
       {enabled && !sLoad && (
         <>
+          {/* Стат. карточки */}
           <div className="grid grid-cols-3 gap-2">
             <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-gray-700">{(students as []).length}</div><div className="text-xs text-gray-400">Учеников</div></div>
             <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{(students as Record<string, unknown>[]).filter(s => isPresent(s.id as number)).length}</div><div className="text-xs text-gray-400">Сегодня</div></div>
             <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(students as Record<string, unknown>[]).filter(s => isPaid(s.id as number)).length}</div><div className="text-xs text-gray-400">Оплатили</div></div>
           </div>
+
+          {/* Список активных учеников */}
           <div className="flex flex-col gap-2">
             {(students as Record<string, unknown>[]).map(s => {
               const sid = s.id as number;
               const here = isPresent(sid);
               const paid = isPaid(sid);
+              const birthday = isBirthday(s);
+              const certOk = isCertOk(s);
+              const insOk = isInsOk(s);
               return (
-                <div key={sid} className={`card-glass rounded-xl p-3 border-l-2 ${paid ? "border-l-green-500" : "border-l-red-400"}`}>
-                  <div className="font-semibold text-sm mb-1">{s.name as string}</div>
-                  <div className="text-xs text-gray-400 mb-2">{s.hall as string} · {s.grp as string}</div>
+                <div key={sid}
+                  className={`card-glass rounded-xl p-3 border-l-2 ${birthday ? "border-l-yellow-400" : paid ? "border-l-green-500" : "border-l-red-400"}`}
+                  style={birthday ? { background: "linear-gradient(135deg,#fffbeb 0%,#fff 60%)" } : undefined}>
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-oswald font-bold flex-shrink-0 ${birthday ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"}`}>
+                      {birthday ? "🎂" : ini(s.name as string)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate flex items-center gap-1">
+                        {s.name as string}
+                        {birthday && <span className="text-[10px]">🎉</span>}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {[s.hall, s.hall2, s.grp].filter(Boolean).join(" · ")}
+                      </div>
+                      {s.birthdate && (
+                        <div className="text-[10px] text-gray-300 flex items-center gap-1">
+                          <Icon name="Cake" size={10} />{(s.birthdate as string).split("-").reverse().join(".")}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {s.cert_to
+                          ? (certOk ? <span className="badge-present text-[9px]">✓ Справка</span> : <span className="badge-absent text-[9px]">Справка просрочена</span>)
+                          : <span className="badge-absent text-[9px]">Нет справки</span>}
+                        {s.insurance
+                          ? (insOk ? <span className="badge-present text-[9px]">✓ Страховка</span> : <span className="badge-absent text-[9px]">Страховка просрочена</span>)
+                          : null}
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
-                    <button onClick={() => toggleAtt(sid, here)} disabled={toggling.has(`a${sid}`)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all ${here ? "bg-green-50 border-green-200 text-green-700" : "border-gray-200 text-gray-500 hover:border-red-300"}`}>
-                      {here ? "✓ Был (снять)" : "Отметить"}
-                    </button>
                     <button onClick={() => togglePay(sid, paid)} disabled={toggling.has(`p${sid}`)}
                       className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all ${paid ? "bg-green-50 border-green-200 text-green-700" : "border-gray-200 text-gray-500 hover:border-red-300"}`}>
-                      {paid ? "✓ Оплачен (снять)" : "Оплатить"}
+                      {paid ? "✓ Оплачен (снять)" : "💰 Оплатить"}
+                    </button>
+                    <button onClick={() => toggleAtt(sid, here)} disabled={toggling.has(`a${sid}`)}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all ${here ? "bg-green-50 border-green-200 text-green-700" : "border-red-50 border-red-200 text-red-500 hover:border-red-300"}`}>
+                      {here ? "✅ Был (снять)" : <span style={{ color: "hsl(0,72%,40%)" }}>● Отметить</span>}
                     </button>
                   </div>
                 </div>
               );
             })}
+            {(students as []).length === 0 && (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                <Icon name="Users" size={32} className="mx-auto mb-2 opacity-20" />Нет учеников
+              </div>
+            )}
           </div>
+
+          {/* Архив */}
+          {showArchive && (
+            <div className="card-glass rounded-2xl overflow-hidden">
+              <div className="px-3 py-2 bg-orange-50 border-b border-orange-100">
+                <div className="text-xs font-semibold text-orange-500 uppercase tracking-wide flex items-center gap-1">
+                  <Icon name="Archive" size={12} />Архив ({(archived as []).length})
+                </div>
+              </div>
+              {(archived as Record<string, unknown>[]).length === 0
+                ? <div className="text-center py-6 text-gray-400 text-xs">Архив пуст</div>
+                : (archived as Record<string, unknown>[]).map(s => (
+                  <div key={s.id as number} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-500">{s.name as string}</div>
+                        <div className="text-xs text-gray-400">{[s.hall, s.grp].filter(Boolean).join(" · ")}</div>
+                        {s.archive_reason && <div className="text-xs text-orange-400 mt-0.5">Причина: {s.archive_reason as string}</div>}
+                      </div>
+                      <div className="text-[10px] text-gray-300 whitespace-nowrap">
+                        {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
 
-// ─── ОТЧЁТЫ (ADMIN — ВИДИТ ВСЁ) ───────────────────────────────────────────────
-interface TipP { active?: boolean; payload?: {color:string;value:number;dataKey:string}[]; label?: string }
-const ChartTip = ({ active, payload, label }: TipP) => {
-  if (!active || !payload?.length) return null;
-  return <div className="card-glass rounded-xl p-2 border border-gray-200 shadow text-xs"><p className="text-gray-400 mb-1">{label}</p>{payload.map(p => <p key={p.dataKey} style={{ color: p.color }} className="font-bold">{p.value}</p>)}</div>;
-};
-
+// ─── ОТЧЁТЫ (ADMIN) ────────────────────────────────────────────────────────────
 function ReportsTab() {
   const [month, setMonth] = useState(monStr());
   const [trainerId, setTrainerId] = useState<number | null>(null);
@@ -277,24 +358,25 @@ function ReportsTab() {
   const students: Record<string, unknown>[] = data?.students || [];
   const trainerRows: Record<string, unknown>[] = data?.trainers || [];
 
-  const chartData = trainerId
-    ? students.map(s => ({ name: ini(s.name as string), pct: s.attendance_rate as number }))
-    : trainerRows.map(t => ({ name: ini(t.full_name as string), abs: t.subs_rev as number, pers: t.pers_rev as number }));
-
   const exportCsv = () => {
     const headers = trainerId
-      ? ["Ученик", "Зал", "Группа", "Был/Всего", "Перс.", "%", "Оплата", "Абонемент ₽"]
+      ? ["Ученик", "Зал", "Зал 2", "Группа", "Был/Всего", "Перс.", "%", "Оплата", "Абонемент ₽"]
       : ["Тренер", "Зал", "Учеников", "Абонементы ₽", "Персональные ₽", "Итого ₽"];
     const rows = trainerId
-      ? students.map(s => [s.name, s.hall, s.grp, `${s.present_count}/${s.total_days}`, s.personal_count, s.attendance_rate + "%", s.paid ? "Оплачен" : "Не оплачен", s.paid ? s.fee : 0])
+      ? students.map(s => [s.name, s.hall, s.hall2 || "", s.grp, `${s.present_count}/${s.total_days}`, s.personal_count, s.attendance_rate + "%", s.paid ? "Оплачен" : "Не оплачен", s.paid ? s.fee : 0])
       : trainerRows.map(t => [t.full_name, t.hall, t.student_count, t.subs_rev, t.pers_rev, t.total_rev]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv" })); a.download = `отчёт_${month}.csv`; a.click();
   };
 
+  // Максимум для CSS-баров
+  const maxRev = Math.max(...trainerRows.map(t => t.total_rev as number), 1);
+  const maxPct = 100;
+
   return (
     <div className="flex flex-col gap-3 px-4 py-3 pb-24">
       <div className="flex items-center justify-between"><h1 className="section-title">Отчёты</h1><OutlineBtn onClick={exportCsv}>⬇ CSV</OutlineBtn></div>
+
       <div className="card-glass rounded-2xl p-3 flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2">
           <input type="month" className={inputCls} value={month} onChange={e => setMonth(e.target.value)} />
@@ -308,9 +390,10 @@ function ReportsTab() {
       {isLoading && <Loading />}
       {!isLoading && (
         <>
+          {/* Итоговые карточки */}
           <div className="grid grid-cols-2 gap-3">
             <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-gray-700">{summary.total_students || 0}</div><div className="text-xs text-gray-400">Учеников</div></div>
-            <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{(summary.paid_count || 0)}</div><div className="text-xs text-gray-400">Оплатили</div></div>
+            <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{summary.paid_count || 0}</div><div className="text-xs text-gray-400">Оплатили</div></div>
             {summary.total_revenue !== undefined && <>
               <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(summary.subs_revenue || 0).toLocaleString()} ₽</div><div className="text-xs text-gray-400">Абонементы</div></div>
               <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-purple-600">{(summary.pers_revenue || 0).toLocaleString()} ₽</div><div className="text-xs text-gray-400">Персональные</div></div>
@@ -324,58 +407,60 @@ function ReportsTab() {
             </div>
           )}
 
-          {chartData.length > 0 && (
-            <div className="card-glass rounded-2xl p-4">
-              <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{trainerId ? "Посещаемость %" : "Выручка по тренерам (₽)"}</h2>
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTip />} />
-                  {trainerId
-                    ? <Bar dataKey="pct" fill="hsl(0,72%,40%)" radius={[4, 4, 0, 0]} name="%" />
-                    : <><Bar dataKey="abs" fill="hsl(0,72%,40%)" radius={[4, 4, 0, 0]} name="Абон." /><Bar dataKey="pers" fill="hsl(265,60%,55%)" radius={[4, 4, 0, 0]} name="Перс." /></>}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
+          {/* Таблица по тренерам с CSS-барами */}
           {!trainerId && trainerRows.length > 0 && (
             <div className="card-glass rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50"><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Тренер</th><th className="text-right px-3 py-2.5 text-xs text-gray-400 uppercase">Абон.</th><th className="text-right px-3 py-2.5 text-xs text-gray-400 uppercase">Перс.</th><th className="text-right px-3 py-2.5 text-xs text-gray-400 uppercase">Итого</th></tr></thead>
-                <tbody>
-                  {trainerRows.map(t => (
-                    <tr key={t.id as number} className="border-t border-gray-50">
-                      <td className="px-3 py-2.5 font-semibold text-xs">{t.full_name as string}<div className="text-[10px] text-gray-400">{t.student_count as number} уч.</div></td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs text-gray-600">{(t.subs_rev as number).toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs text-purple-600">{(t.pers_rev as number).toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-xs font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(t.total_rev as number).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">По тренерам</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {trainerRows.map(t => (
+                  <div key={t.id as number} className="px-3 py-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-700">{t.full_name as string}</span>
+                      <span className="font-oswald font-bold text-sm" style={{ color: "hsl(0,72%,40%)" }}>{(t.total_rev as number).toLocaleString()} ₽</span>
+                    </div>
+                    <div className="text-xs text-gray-400 mb-1">{t.student_count as number} уч. · абон. {(t.subs_rev as number).toLocaleString()} ₽ · перс. {(t.pers_rev as number).toLocaleString()} ₽</div>
+                    <MiniBar value={t.total_rev as number} max={maxRev} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
+          {/* Таблица по ученикам с CSS-барами посещаемости */}
           {trainerId && students.length > 0 && (
             <div className="card-glass rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50"><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Ученик</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Посещ.</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Перс.</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">%</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Опл.</th></tr></thead>
-                <tbody>
-                  {students.map(s => (
-                    <tr key={s.id as number} className="border-t border-gray-50">
-                      <td className="px-3 py-2.5 font-semibold text-xs">{s.name as string}</td>
-                      <td className="px-3 py-2.5 text-center text-xs text-gray-500">{s.present_count as number}/{s.total_days as number}</td>
-                      <td className="px-3 py-2.5 text-center text-xs text-gray-500">{s.personal_count as number}</td>
-                      <td className="px-3 py-2.5 text-center text-xs"><span className={`font-bold ${(s.attendance_rate as number) >= 75 ? "text-green-600" : (s.attendance_rate as number) >= 50 ? "text-amber-500" : "text-red-500"}`}>{s.attendance_rate as number}%</span></td>
-                      <td className="px-3 py-2.5 text-center">{s.paid ? <span className="badge-paid">✓</span> : <span className="badge-overdue">✗</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Ученики</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {students.map(s => {
+                  const pct = s.attendance_rate as number;
+                  const pctColor = pct >= 75 ? "hsl(142,60%,40%)" : pct >= 50 ? "hsl(38,90%,45%)" : "hsl(0,72%,40%)";
+                  return (
+                    <div key={s.id as number} className="px-3 py-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-semibold">{s.name as string}</span>
+                          <span className="text-xs text-gray-400 ml-2">{[s.hall, s.hall2].filter(Boolean).join("+")}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">{s.present_count as number}/{s.total_days as number}</span>
+                          <span className="font-bold text-xs" style={{ color: pctColor }}>{pct}%</span>
+                          {s.paid ? <span className="badge-paid text-[9px]">✓</span> : <span className="badge-overdue text-[9px]">✗</span>}
+                        </div>
+                      </div>
+                      <MiniBar value={pct} max={maxPct} color={pctColor} />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+
+          {students.length === 0 && trainerRows.length === 0 && !isLoading && (
+            <div className="text-center py-10 text-gray-400 text-sm">Нет данных за этот месяц</div>
           )}
         </>
       )}
@@ -395,24 +480,23 @@ export default function AdminDashboard({ user }: { user: AppUser }) {
   const [tab, setTab] = useState<Tab>("trainers");
   return (
     <div className="flex flex-col">
-      {tab === "trainers" && <TrainersTab user={user} />}
-      {tab === "data"     && <DataTab />}
-      {tab === "reports"  && <ReportsTab />}
-
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-center justify-around max-w-2xl mx-auto left-0 right-0"
-        style={{ boxShadow: "0 -2px 12px rgba(0,0,0,0.07)", paddingBottom: "env(safe-area-inset-bottom,0px)", minHeight: 60 }}>
+      {/* Навбар вкладок */}
+      <div className="sticky top-[88px] z-20 bg-white border-b border-gray-100 flex">
         {TABS.map(t => {
           const active = tab === t.id;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all">
-              <div className="w-7 h-7 flex items-center justify-center rounded-lg transition-all" style={{ background: active ? "hsl(0,72%,96%)" : "transparent", color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,52%)", transform: active ? "scale(1.1)" : "scale(1)" }}>
-                <Icon name={t.icon as Parameters<typeof Icon>[0]["name"]} size={18} />
-              </div>
-              <span className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,52%)" }}>{t.label}</span>
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-semibold transition-all"
+              style={{ color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,52%)", borderBottom: active ? "2px solid hsl(0,72%,40%)" : "2px solid transparent" }}>
+              <Icon name={t.icon as Parameters<typeof Icon>[0]["name"]} size={17} />
+              {t.label}
             </button>
           );
         })}
-      </nav>
+      </div>
+      {tab === "trainers" && <TrainersTab user={user} />}
+      {tab === "data"     && <DataTab />}
+      {tab === "reports"  && <ReportsTab />}
     </div>
   );
 }

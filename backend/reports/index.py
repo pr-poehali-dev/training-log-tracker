@@ -53,7 +53,8 @@ def handler(event: dict, context) -> dict:
         trainer_filter = trainer_id_param if trainer_id_param else uid
         cur.execute(f"""
             SELECT
-                s.id, s.name, s.hall, s.grp, s.fee,
+                s.id, s.name, s.hall, s.hall2, s.grp, s.fee,
+                s.birthdate, s.insurance, s.insurance_to, s.cert_to, s.created_at,
                 COALESCE(p.paid, FALSE) as paid,
                 COUNT(DISTINCT CASE WHEN a.present THEN a.date END) as present_count,
                 COUNT(DISTINCT a.date) as total_days,
@@ -67,8 +68,10 @@ def handler(event: dict, context) -> dict:
             LEFT JOIN {S}.attendance a ON a.student_id=s.id AND to_char(a.date,'YYYY-MM')=%s
             LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
             JOIN {S}.users u ON u.id=s.trainer_id
-            WHERE s.trainer_id=%s
-            GROUP BY s.id, s.name, s.hall, s.grp, s.fee, p.paid, u.full_name, u.trainings_per_month
+            WHERE s.trainer_id=%s AND s.archived=FALSE
+            GROUP BY s.id, s.name, s.hall, s.hall2, s.grp, s.fee,
+                     s.birthdate, s.insurance, s.insurance_to, s.cert_to, s.created_at,
+                     p.paid, u.full_name, u.trainings_per_month
             ORDER BY s.name
         """, (month, month, month, month, trainer_filter))
 
@@ -110,7 +113,7 @@ def handler(event: dict, context) -> dict:
                           JOIN {S}.students s2 ON s2.id=ps2.student_id
                           WHERE s2.trainer_id=u.id AND ps2.paid AND to_char(ps2.date,'YYYY-MM')=%s), 0) as pers_rev
             FROM {S}.users u
-            LEFT JOIN {S}.students s ON s.trainer_id=u.id
+            LEFT JOIN {S}.students s ON s.trainer_id=u.id AND s.archived=FALSE
             LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
             WHERE u.role='trainer'
             GROUP BY u.id, u.full_name, u.hall
