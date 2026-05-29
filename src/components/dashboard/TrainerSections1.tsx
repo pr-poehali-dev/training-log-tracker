@@ -43,6 +43,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [search, setSearch] = useState("");
   const [filterGrp, setFilterGrp] = useState("");
   const [filterHall, setFilterHall] = useState("");
+  const [filterSport, setFilterSport] = useState<"" | "sport" | "main">("");
 
   const today = todayStr();
   const todayMD = todayMMDD();
@@ -72,11 +73,15 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const grps = uniq("grp");
   const schedules = uniq("schedule");
 
+  const hasSportStudents = (students as Record<string, unknown>[]).some(s => s.has_sport);
+
   const filtered = (students as Record<string, unknown>[]).filter(s => {
     const q = search.toLowerCase();
     if (q && !(s.name as string)?.toLowerCase().includes(q)) return false;
     if (filterGrp && s.grp !== filterGrp) return false;
     if (filterHall && s.hall !== filterHall && s.hall2 !== filterHall) return false;
+    if (filterSport === "sport" && !s.has_sport) return false;
+    if (filterSport === "main" && s.has_sport) return false;
     return true;
   });
 
@@ -172,7 +177,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
 
-  const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0);
+  const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0) + (filterSport ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -233,8 +238,26 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       )}
 
+      {/* Фильтр по типу группы — показываем только если есть хоть один ученик спортивной */}
+      {hasSportStudents && (
+        <div className="flex flex-col gap-1">
+          <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Тип группы</div>
+          <div className="flex flex-wrap gap-1.5">
+            <button onClick={() => setFilterSport("")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+              style={filterSport === "" ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
+            <button onClick={() => setFilterSport(filterSport === "main" ? "" : "main")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "main" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+              style={filterSport === "main" ? { background: "hsl(0,72%,40%)" } : {}}>Основная</button>
+            <button onClick={() => setFilterSport(filterSport === "sport" ? "" : "sport")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "sport" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+              style={filterSport === "sport" ? { background: "hsl(200,70%,42%)" } : {}}>🏅 Спортивная</button>
+          </div>
+        </div>
+      )}
+
       {activeFilters > 0 && (
-        <button onClick={() => { setFilterGrp(""); setFilterHall(""); }}
+        <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterSport(""); }}
           className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
           <Icon name="X" size={12} />Сбросить фильтры ({activeFilters})
         </button>
