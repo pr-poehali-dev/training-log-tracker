@@ -206,23 +206,36 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
       {/* Поиск */}
       <div className="relative">
-        <Icon name="Search" size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input className={`${inputCls} pl-8 pr-8`} placeholder="Поиск по имени..." value={search} onChange={e => setSearch(e.target.value)} />
-        {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><Icon name="X" size={13} /></button>}
+        <Icon name="Search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 transition"
+          placeholder="Поиск по имени ученика..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && (
+          <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <Icon name="X" size={14} />
+          </button>
+        )}
       </div>
 
       {/* Фильтр по залам */}
       {halls.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Зал</div>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Зал</div>
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => setFilterHall("")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${!filterHall ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={!filterHall ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterHall
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>Все</button>
             {halls.map(h => (
               <button key={h} onClick={() => setFilterHall(filterHall === h ? "" : h)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterHall === h ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-                style={filterHall === h ? { background: "hsl(0,72%,40%)" } : {}}>{h}</button>
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterHall === h
+                  ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                  : { background: "#eee", color: "#555" }}>{h}</button>
             ))}
           </div>
         </div>
@@ -230,35 +243,45 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
       {/* Фильтр по группам */}
       {grps.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Группа</div>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Группа</div>
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => setFilterGrp("")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${!filterGrp ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={!filterGrp ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterGrp
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>Все</button>
             {grps.map(g => (
               <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterGrp === g ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-                style={filterGrp === g ? { background: "hsl(0,72%,40%)" } : {}}>{g}</button>
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterGrp === g
+                  ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                  : { background: "#eee", color: "#555" }}>{g}</button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Фильтр по типу группы — показываем только если есть хоть один ученик спортивной */}
+      {/* Фильтр по типу группы */}
       {hasSportStudents && (
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Тип группы</div>
-          <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Тип группы</div>
+          <div className="flex flex-wrap gap-2">
             <button onClick={() => setFilterSport("")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={filterSport === "" ? { background: "hsl(0,72%,40%)" } : {}}>Все</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={filterSport === ""
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>Все</button>
             <button onClick={() => setFilterSport(filterSport === "main" ? "" : "main")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "main" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={filterSport === "main" ? { background: "hsl(0,72%,40%)" } : {}}>Основная</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={filterSport === "main"
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>🥇 Основная</button>
             <button onClick={() => setFilterSport(filterSport === "sport" ? "" : "sport")}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${filterSport === "sport" ? "text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
-              style={filterSport === "sport" ? { background: "hsl(200,70%,42%)" } : {}}>🏅 Спортивная</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={filterSport === "sport"
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>🏆 Спортивная</button>
           </div>
         </div>
       )}

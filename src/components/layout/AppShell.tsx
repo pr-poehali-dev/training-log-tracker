@@ -3,12 +3,12 @@ import Icon from "@/components/ui/icon";
 export type Tab = "students" | "payments" | "attendance" | "personal" | "notes" | "reports";
 
 export const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "students",   label: "Ученики",    icon: "BookOpen" },
-  { id: "payments",   label: "Оплаты",     icon: "CreditCard" },
-  { id: "attendance", label: "Посещения",  icon: "CalendarCheck" },
-  { id: "personal",   label: "Персональные", icon: "User" },
-  { id: "notes",      label: "Заметки",    icon: "FileText" },
-  { id: "reports",    label: "Отчёты",     icon: "BarChart3" },
+  { id: "students",   label: "Ученики",   icon: "Users" },
+  { id: "payments",   label: "Оплаты",    icon: "CircleDollarSign" },
+  { id: "attendance", label: "Посещения", icon: "CalendarCheck" },
+  { id: "personal",   label: "Персонал",  icon: "User" },
+  { id: "notes",      label: "Заметки",   icon: "FileText" },
+  { id: "reports",    label: "Отчёты",    icon: "BarChart2" },
 ];
 
 interface AppShellProps {
@@ -23,7 +23,6 @@ export default function AppShell({ tab, onTabChange, children, toolbar }: AppShe
     <>
       {/* ── DESKTOP ── */}
       <div className="hidden md:flex min-h-screen">
-        {/* Sidebar */}
         <aside className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col sticky top-0 h-screen">
           <nav className="flex flex-col gap-1 p-3 flex-1 mt-2">
             {TABS.map(t => {
@@ -46,41 +45,47 @@ export default function AppShell({ tab, onTabChange, children, toolbar }: AppShe
           </nav>
         </aside>
 
-        {/* Main */}
         <div className="flex-1 flex flex-col min-w-0">
-          {toolbar && (
-            <div className="px-6 pt-4">{toolbar}</div>
-          )}
-          <div className="px-6 py-4 flex-1">
-            {children}
-          </div>
+          {toolbar && <div className="px-6 pt-4">{toolbar}</div>}
+          <div className="px-6 py-4 flex-1">{children}</div>
         </div>
       </div>
 
       {/* ── MOBILE ── */}
       <div className="flex flex-col md:hidden">
         {toolbar && (
-          <div className="px-4 pt-3">{toolbar}</div>
+          <div className="relative px-4 pt-3">{toolbar}</div>
         )}
-        <div className="px-4 py-3 pb-20">
-          {children}
-        </div>
+        <div className="px-4 py-3 pb-24">{children}</div>
 
-        {/* Bottom nav */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-center justify-around"
-          style={{ boxShadow: "0 -2px 12px rgba(0,0,0,0.07)", paddingBottom: "env(safe-area-inset-bottom,0px)", minHeight: 60 }}>
+        {/* Bottom nav — точь-в-точь по макету */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-100 flex items-stretch"
+          style={{
+            boxShadow: "0 -1px 0 rgba(0,0,0,0.06), 0 -4px 16px rgba(0,0,0,0.05)",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          }}>
           {TABS.map(t => {
             const active = tab === t.id;
             return (
-              <button key={t.id} onClick={() => onTabChange(t.id)}
-                className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-all">
-                <div className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
-                  style={{ background: active ? "hsl(0,72%,96%)" : "transparent", color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,52%)", transform: active ? "scale(1.1)" : "scale(1)" }}>
-                  <Icon name={t.icon as Parameters<typeof Icon>[0]["name"]} size={18} />
-                </div>
-                <span className="text-[9px] uppercase tracking-wide font-semibold"
-                  style={{ color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,52%)" }}>
-                  {t.label.length > 7 ? t.label.slice(0, 6) + "." : t.label}
+              <button
+                key={t.id}
+                onClick={() => onTabChange(t.id)}
+                className="flex-1 flex flex-col items-center justify-center pt-2 pb-1.5 gap-0.5 transition-all relative"
+              >
+                {/* Active indicator line top */}
+                {active && (
+                  <span className="absolute top-0 left-2 right-2 h-0.5 rounded-full"
+                    style={{ background: "hsl(0,72%,40%)" }} />
+                )}
+                <Icon
+                  name={t.icon as Parameters<typeof Icon>[0]["name"]}
+                  size={20}
+                  style={{ color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,58%)" }}
+                />
+                <span
+                  className="text-[9px] font-semibold uppercase tracking-wide leading-none"
+                  style={{ color: active ? "hsl(0,72%,40%)" : "hsl(0,0%,58%)" }}>
+                  {t.label}
                 </span>
               </button>
             );
