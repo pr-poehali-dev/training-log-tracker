@@ -190,13 +190,17 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       )}
       <div className="flex items-center justify-between">
-        <h1 className="section-title">Ученики <span className="text-gray-400 font-normal text-sm">({filtered.length})</span></h1>
+        <h1 className="section-title">
+          УЧЕНИКИ <span className="text-gray-400 font-golos font-normal text-sm">({filtered.length})</span>
+        </h1>
         <div className="flex gap-2">
           <button onClick={() => setShowArchive(!showArchive)}
-            className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+            className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
             <Icon name="Archive" size={13} />Архив
           </button>
-          <PrimaryBtn onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
+          <PrimaryBtn onClick={() => setShowAdd(true)}>
+            <Icon name="Plus" size={15} className="inline mr-1" />Добавить
+          </PrimaryBtn>
         </div>
       </div>
 
