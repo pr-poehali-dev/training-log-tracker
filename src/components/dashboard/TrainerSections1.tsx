@@ -394,25 +394,83 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
   if (isLoading) return <Loading />;
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="section-title">Оплата — {month}</h1>
+      <h1 className="section-title">ОПЛАТЫ <span className="text-gray-400 font-golos font-normal text-sm">({total})</span></h1>
+
+      {/* Статы */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-gray-700">{total}</div><div className="text-xs text-gray-400 mt-1">Всего</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{paidCount}</div><div className="text-xs text-gray-400 mt-1">Оплатили</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{revenue.toLocaleString("ru")} ₽</div><div className="text-xs text-gray-400 mt-1">Сбор</div></div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold text-gray-700">{total}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Всего</div>
+        </div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(142,55%,38%)" }}>{paidCount}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Оплатили</div>
+        </div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{revenue.toLocaleString("ru")} ₽</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Сбор</div>
+        </div>
       </div>
+
+      {/* Прогресс-бар оплат */}
+      {total > 0 && (
+        <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <span>Прогресс оплат</span>
+            <span className="font-bold">{Math.round(paidCount / total * 100)}%</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${Math.round(paidCount / total * 100)}%`, background: "hsl(0,72%,40%)" }} />
+          </div>
+        </div>
+      )}
+
+      {/* Список */}
       {(payData as Record<string, unknown>[]).map(p => {
         const sid = p.student_id as number;
         const t = toggling.has(sid);
         return (
-          <div key={sid} className={`card-glass rounded-xl p-3 flex items-center gap-3 border-l-2 ${p.paid ? "border-l-green-500" : "border-l-red-400"}`}>
-            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-oswald font-bold text-gray-500">{ini(p.name as string)}</div>
-            <div className="flex-1"><div className="text-sm font-semibold">{p.name as string}</div><div className="text-xs text-gray-400">{(p.fee as number)?.toLocaleString("ru")} ₽</div></div>
-            {p.paid
-              ? <span className="text-xs text-green-600 font-semibold">✓ Оплачен</span>
-              : <button disabled={t} onClick={() => markPay(sid)} className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: "hsl(0,72%,40%)" }}>{t ? "..." : "Оплатить"}</button>}
+          <div key={sid} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
+            {/* Водяной знак */}
+            <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
+              <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
+                alt="" className="absolute" style={{ width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
+            </div>
+
+            <div className="p-3 flex items-center gap-3 relative z-10">
+              {/* Аватар */}
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-oswald font-bold flex-shrink-0 ${p.paid ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+                {ini(p.name as string)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[13px] text-gray-900">{p.name as string}</div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  {(p.fee as number)?.toLocaleString("ru")} ₽ · {p.hall as string || ""}
+                </div>
+              </div>
+              {p.paid ? (
+                <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>
+                  <Icon name="Check" size={12} />Оплачен
+                </span>
+              ) : (
+                <button disabled={t} onClick={() => markPay(sid)}
+                  className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-all active:opacity-80 disabled:opacity-60"
+                  style={{ background: "hsl(0,72%,40%)" }}>
+                  {t ? "..." : "Оплатить"}
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
+
+      {(payData as []).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="CircleDollarSign" size={40} className="mx-auto mb-2 opacity-30" />
+          <p>Нет данных об оплатах</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -456,37 +514,37 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="section-title">Посещения — {month}</h1>
+      <h1 className="section-title">ПОСЕЩЕНИЯ <span className="text-gray-400 font-golos font-normal text-sm">({(students as []).length})</span></h1>
 
-      {/* Итоговые счётчики */}
+      {/* Статы */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="stat-card text-center">
-          <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{daysMain.length}</div>
-          <div className="text-xs text-gray-400">Осн. занятий</div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{daysMain.length}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Осн. занятий</div>
         </div>
-        {hasSportStudents && (
-          <div className="stat-card text-center">
-            <div className="text-xl font-oswald font-bold" style={{ color: "hsl(200,70%,42%)" }}>{daysSport.length}</div>
-            <div className="text-xs text-gray-400">Спорт занятий</div>
+        {hasSportStudents ? (
+          <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+            <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(200,70%,42%)" }}>{daysSport.length}</div>
+            <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Спорт занятий</div>
           </div>
-        )}
-        <div className="stat-card text-center flex-1">
-          <div className="flex-1">
-            {editTpm ? (
-              <div className="flex items-center justify-center gap-1">
-                <input type="number" min={1} max={31} value={tpm} onChange={e => setTpm(+e.target.value)}
-                  className="w-12 bg-gray-50 border border-gray-200 rounded px-1 py-1 text-sm font-bold text-center focus:outline-none focus:border-red-400" />
-                <button onClick={saveTpm} disabled={savingTpm} className="text-xs font-bold px-1.5 py-1 rounded text-white" style={{ background: "hsl(0,72%,40%)" }}>{savingTpm ? "..." : "✓"}</button>
-                <button onClick={() => setEditTpm(false)} className="text-xs text-gray-400">✕</button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center gap-1">
-                <div className="text-xl font-oswald font-bold text-gray-700">{totalTrainings}</div>
-                <button onClick={() => { setTpm(totalTrainings); setEditTpm(true); }} className="text-gray-300 hover:text-gray-500"><Icon name="Pencil" size={12} /></button>
-              </div>
-            )}
-            <div className="text-xs text-gray-400">План/мес</div>
-          </div>
+        ) : <div />}
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          {editTpm ? (
+            <div className="flex items-center justify-center gap-1">
+              <input type="number" min={1} max={31} value={tpm} onChange={e => setTpm(+e.target.value)}
+                className="w-12 bg-gray-50 border border-gray-200 rounded-lg px-1 py-1 text-sm font-bold text-center focus:outline-none focus:border-red-400" />
+              <button onClick={saveTpm} disabled={savingTpm} className="text-xs font-bold px-1.5 py-1 rounded-lg text-white" style={{ background: "hsl(0,72%,40%)" }}>{savingTpm ? "..." : "✓"}</button>
+              <button onClick={() => setEditTpm(false)} className="text-xs text-gray-400 ml-0.5">✕</button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-1">
+              <div className="text-2xl font-oswald font-bold text-gray-700">{totalTrainings}</div>
+              <button onClick={() => { setTpm(totalTrainings); setEditTpm(true); }} className="text-gray-300 hover:text-gray-500 mt-0.5">
+                <Icon name="Pencil" size={12} />
+              </button>
+            </div>
+          )}
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">План/мес</div>
         </div>
       </div>
 
@@ -496,54 +554,89 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
         const hasSport = Boolean(s.has_sport);
         const cntMain  = countMain(sid);
         const cntSport = hasSport ? countSport(sid) : 0;
-        const cntTotal = cntMain + cntSport;
         const pct = Math.min(100, totalTrainings ? Math.round(cntMain / totalTrainings * 100) : 0);
+        const isGood = pct >= 70;
 
         return (
-          <div key={sid} className="card-glass rounded-xl p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-oswald font-bold text-gray-500">{ini(s.name as string)}</div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold">{s.name as string}</div>
-                <div className="text-xs text-gray-400">
-                  Осн: {cntMain}/{totalTrainings} ({pct}%)
-                  {hasSport && <span className="ml-2" style={{ color: "hsl(200,70%,42%)" }}>· Спорт: {cntSport}</span>}
-                  {hasSport && <span className="text-gray-300 ml-1">· Всего: {cntTotal}</span>}
-                </div>
-              </div>
-              <div className="text-lg font-oswald font-bold" style={{ color: pct >= 70 ? "hsl(142,60%,40%)" : "hsl(0,72%,40%)" }}>{pct}%</div>
+          <div key={sid} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
+            {/* Водяной знак */}
+            <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
+              <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
+                alt="" style={{ position: "absolute", width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
             </div>
 
-            {/* Дни основной группы */}
-            {daysMain.length > 0 && (
-              <div className="mb-1.5">
-                <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-1">Основная</div>
-                <div className="flex flex-wrap gap-1">
-                  {daysMain.map(d => (
-                    <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${presentOn(sid, d, "main") ? "bg-green-100 text-green-700" : "bg-red-50 text-red-300"}`}>
-                      {d.slice(5)}
-                    </span>
-                  ))}
+            <div className="p-3 relative z-10">
+              {/* Шапка карточки */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-oswald font-bold text-gray-500 flex-shrink-0">
+                  {ini(s.name as string)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-[13px] text-gray-900 truncate">{s.name as string}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    Осн: {cntMain}/{totalTrainings}
+                    {hasSport && <span className="ml-2" style={{ color: "hsl(200,70%,42%)" }}>· Спорт: {cntSport}</span>}
+                  </div>
+                </div>
+                {/* Процент посещаемости */}
+                <div className="font-oswald font-bold text-xl flex-shrink-0"
+                  style={{ color: isGood ? "hsl(142,55%,38%)" : "hsl(0,72%,40%)" }}>
+                  {pct}%
                 </div>
               </div>
-            )}
 
-            {/* Дни спортивной группы — только для тех у кого has_sport */}
-            {hasSport && daysSport.length > 0 && (
-              <div>
-                <div className="text-[9px] uppercase tracking-wide mb-1" style={{ color: "hsl(200,70%,45%)" }}>Спортивная</div>
-                <div className="flex flex-wrap gap-1">
-                  {daysSport.map(d => (
-                    <span key={d} className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${presentOn(sid, d, "sport") ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-300"}`}>
-                      {d.slice(5)}
-                    </span>
-                  ))}
-                </div>
+              {/* Прогресс-бар */}
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2.5">
+                <div className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${pct}%`, background: isGood ? "hsl(142,55%,42%)" : "hsl(0,72%,40%)" }} />
               </div>
-            )}
+
+              {/* Дни основной группы */}
+              {daysMain.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Основная</div>
+                  <div className="flex flex-wrap gap-1">
+                    {daysMain.map(d => (
+                      <span key={d}
+                        className="text-[10px] px-1.5 py-0.5 rounded-md font-mono font-semibold"
+                        style={presentOn(sid, d, "main")
+                          ? { background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }
+                          : { background: "hsl(0,72%,97%)", color: "hsl(0,72%,70%)" }}>
+                        {d.slice(5)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Дни спортивной группы */}
+              {hasSport && daysSport.length > 0 && (
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "hsl(200,70%,45%)" }}>Спортивная</div>
+                  <div className="flex flex-wrap gap-1">
+                    {daysSport.map(d => (
+                      <span key={d}
+                        className="text-[10px] px-1.5 py-0.5 rounded-md font-mono font-semibold"
+                        style={presentOn(sid, d, "sport")
+                          ? { background: "hsl(200,55%,93%)", color: "hsl(200,60%,32%)" }
+                          : { background: "hsl(200,30%,96%)", color: "hsl(200,40%,70%)" }}>
+                        {d.slice(5)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
+
+      {(students as []).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="CalendarCheck" size={40} className="mx-auto mb-2 opacity-30" />
+          <p>Нет данных о посещениях</p>
+        </div>
+      )}
     </div>
   );
 }

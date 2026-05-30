@@ -38,34 +38,66 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   if (isLoading) return <Loading />;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between"><h1 className="section-title">Персональные</h1><PrimaryBtn onClick={openAdd}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn></div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(sessions as []).length}</div><div className="text-xs text-gray-400 mt-1">Тренировок</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{totalRev.toLocaleString()} ₽</div><div className="text-xs text-gray-400 mt-1">Выручка</div></div>
+      <div className="flex items-center justify-between">
+        <h1 className="section-title">ПЕРСОНАЛ</h1>
+        <PrimaryBtn onClick={openAdd}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
       </div>
-      <div className="card-glass rounded-2xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead><tr className="bg-gray-50"><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Дата</th><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Ученик</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Мин</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">₽</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Ст.</th><th /></tr></thead>
-          <tbody>
-            {(sessions as Record<string, unknown>[]).map(p => (
-              <tr key={p.id as number} className="border-t border-gray-50">
-                <td className="px-3 py-2.5 text-xs font-mono text-gray-400">{(p.date as string).slice(5)}</td>
-                <td className="px-3 py-2.5 font-semibold text-xs">{p.name as string}</td>
-                <td className="px-3 py-2.5 text-center text-gray-500">{p.duration as number}</td>
-                <td className="px-3 py-2.5 text-center font-mono text-green-700">{p.cost as number}</td>
-                <td className="px-3 py-2.5 text-center">{p.paid ? <span className="badge-paid">✓</span> : <span className="badge-overdue">✗</span>}</td>
-                <td className="px-3 py-2.5">
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(p)} className="text-gray-300 hover:text-blue-400"><Icon name="Pencil" size={13} /></button>
-                    <button onClick={() => del(p.id as number)} className="text-gray-300 hover:text-red-400"><Icon name="Trash2" size={13} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {(sessions as []).length === 0 && <tr><td colSpan={6} className="text-center py-8 text-gray-400">Нет тренировок</td></tr>}
-          </tbody>
-        </table>
+
+      {/* Статы */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(sessions as []).length}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Тренировок</div>
+        </div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(142,55%,38%)" }}>{totalRev.toLocaleString()} ₽</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Выручка</div>
+        </div>
       </div>
+
+      {/* Список тренировок */}
+      {(sessions as Record<string, unknown>[]).map(p => (
+        <div key={p.id as number} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
+          <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
+            <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
+              alt="" style={{ position: "absolute", width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
+          </div>
+          <div className="p-3 flex items-center gap-3 relative z-10">
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-oswald font-bold text-gray-500 flex-shrink-0">
+              {ini(p.name as string)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-[13px] text-gray-900">{p.name as string}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2">
+                <span className="flex items-center gap-1"><Icon name="CalendarDays" size={10} />{(p.date as string).slice(5)}</span>
+                <span className="flex items-center gap-1"><Icon name="Clock" size={10} />{p.duration as number} мин</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <span className="font-oswald font-bold text-sm" style={{ color: "hsl(142,55%,38%)" }}>{(p.cost as number).toLocaleString()} ₽</span>
+              {p.paid
+                ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>✓ Оплачено</span>
+                : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,50%)" }}>Не оплачено</span>}
+            </div>
+          </div>
+          <div className="flex border-t border-gray-100 relative z-10">
+            <button onClick={() => openEdit(p)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+              <Icon name="Pencil" size={12} />Изменить
+            </button>
+            <button onClick={() => del(p.id as number)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold hover:bg-red-50 transition-colors" style={{ color: "hsl(0,72%,50%)" }}>
+              <Icon name="Trash2" size={12} />Удалить
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {(sessions as []).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="User" size={40} className="mx-auto mb-2 opacity-20" />
+          <p>Нет персональных тренировок</p>
+        </div>
+      )}
+
       <BottomSheet open={showForm} onClose={() => setShowForm(false)} title={editId ? "Редактировать" : "Новая тренировка"}>
         <form onSubmit={save} className="flex flex-col gap-3">
           <select className={inputCls} value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}>
@@ -109,29 +141,65 @@ export function NotesSection({ user }: { user: AppUser }) {
   if (isLoading) return <Loading />;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between"><h1 className="section-title">Заметки</h1><PrimaryBtn onClick={() => { setEditId(null); setForm({ title: "", body: "", tags: "", important: false }); setShowForm(true); }}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn></div>
+      <div className="flex items-center justify-between">
+        <h1 className="section-title">ЗАМЕТКИ</h1>
+        <PrimaryBtn onClick={() => { setEditId(null); setForm({ title: "", body: "", tags: "", important: false }); setShowForm(true); }}>
+          <Icon name="Plus" size={15} className="inline mr-1" />Добавить
+        </PrimaryBtn>
+      </div>
+
       <PushToggle />
+
       {(notes as Record<string, unknown>[]).map(n => (
-        <div key={n.id as number} className={`card-glass rounded-2xl p-4 border-l-2 ${n.important ? "border-l-red-500" : "border-l-gray-200"}`}>
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <div className="flex items-center gap-2">{n.important && <span className="badge-overdue">Важно</span>}<h3 className="font-semibold text-sm">{n.title as string}</h3></div>
-            <span className="text-[10px] text-gray-400">{(n.created_at as string)?.slice(0, 10)}</span>
+        <div key={n.id as number} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+          <div className={`h-1 w-full ${n.important ? "" : "bg-gray-100"}`}
+            style={n.important ? { background: "hsl(0,72%,40%)" } : undefined} />
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
+                {n.important && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,40%)" }}>Важно</span>
+                )}
+                <h3 className="font-semibold text-sm text-gray-900">{n.title as string}</h3>
+              </div>
+              <span className="text-[10px] text-gray-400 flex-shrink-0">{(n.created_at as string)?.slice(0, 10)}</span>
+            </div>
+            {n.body && <p className="text-sm text-gray-500 mb-2 leading-relaxed">{(n.body as string).slice(0, 150)}</p>}
+            {n.tags && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {(n.tags as string).split(",").filter(t => t.trim()).map(t => (
+                  <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">#{t.trim()}</span>
+                ))}
+              </div>
+            )}
           </div>
-          {n.body && <p className="text-sm text-gray-500 mb-2 leading-relaxed">{(n.body as string).slice(0, 150)}</p>}
-          {n.tags && <div className="flex flex-wrap gap-1 mb-2">{(n.tags as string).split(",").filter(t => t.trim()).map(t => <span key={t} className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">#{t.trim()}</span>)}</div>}
-          <div className="flex gap-3 mt-2">
-            <button onClick={() => openEdit(n)} className="text-xs text-gray-400 hover:text-blue-500">✏️ Изменить</button>
-            <button onClick={() => del(n.id as number)} className="text-xs text-gray-400 hover:text-red-500">🗑️ Удалить</button>
+          <div className="flex border-t border-gray-100">
+            <button onClick={() => openEdit(n)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+              <Icon name="Pencil" size={12} />Изменить
+            </button>
+            <button onClick={() => del(n.id as number)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold hover:bg-red-50 transition-colors" style={{ color: "hsl(0,72%,50%)" }}>
+              <Icon name="Trash2" size={12} />Удалить
+            </button>
           </div>
         </div>
       ))}
-      {(notes as []).length === 0 && <div className="text-center py-12 text-gray-400"><Icon name="FileText" size={40} className="mx-auto mb-2 opacity-20" /><p>Нет заметок</p></div>}
+
+      {(notes as []).length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="FileText" size={40} className="mx-auto mb-2 opacity-20" />
+          <p>Нет заметок</p>
+        </div>
+      )}
+
       <BottomSheet open={showForm} onClose={() => setShowForm(false)} title={editId ? "Редактировать" : "Новая заметка"}>
         <form onSubmit={save} className="flex flex-col gap-3">
           <input className={inputCls} placeholder="Заголовок *" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
           <textarea className={inputCls} rows={4} placeholder="Текст..." value={form.body} onChange={e => setForm(p => ({ ...p, body: e.target.value }))} />
           <input className={inputCls} placeholder="Теги (через запятую)" value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} />
-          <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={form.important} onChange={e => setForm(p => ({ ...p, important: e.target.checked }))} className="accent-red-600 w-4 h-4" />Важная заметка</label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={form.important} onChange={e => setForm(p => ({ ...p, important: e.target.checked }))} className="accent-red-600 w-4 h-4" />
+            Важная заметка
+          </label>
           <div className="flex gap-2 pt-1"><OutlineBtn onClick={() => setShowForm(false)}>Отмена</OutlineBtn><PrimaryBtn type="submit" disabled={saving}>{saving ? "..." : "Сохранить"}</PrimaryBtn></div>
         </form>
       </BottomSheet>
@@ -139,8 +207,7 @@ export function NotesSection({ user }: { user: AppUser }) {
   );
 }
 
-// ─── REPORTS (TRAINER — NO REVENUE) ──────────────────────────────────────────
-
+// ─── REPORTS ──────────────────────────────────────────────────────────────────
 export function ReportsSection({ user, month }: { user: AppUser; month: string }) {
   const { data, isLoading, error } = useQuery({ queryKey: ["reports", month, user.id], queryFn: () => reportsApi.get(month) });
 
@@ -159,30 +226,73 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between"><h1 className="section-title">Отчёты</h1><OutlineBtn onClick={exportCsv}>⬇ CSV</OutlineBtn></div>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-gray-700">{summary.total_students || 0}</div><div className="text-xs text-gray-400 mt-1">Всего</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-green-600">{summary.paid_count || 0}</div><div className="text-xs text-gray-400 mt-1">Оплатили</div></div>
-        <div className="stat-card text-center"><div className="text-xl font-oswald font-bold text-red-500">{summary.unpaid_count || 0}</div><div className="text-xs text-gray-400 mt-1">Долг</div></div>
+      <div className="flex items-center justify-between">
+        <h1 className="section-title">ОТЧЁТЫ</h1>
+        <button onClick={exportCsv}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors">
+          <Icon name="Download" size={13} />CSV
+        </button>
       </div>
 
-      <div className="card-glass rounded-2xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead><tr className="bg-gray-50"><th className="text-left px-3 py-2.5 text-xs text-gray-400 uppercase">Ученик</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Был/Всего</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Перс.</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">%</th><th className="text-center px-3 py-2.5 text-xs text-gray-400 uppercase">Опл.</th></tr></thead>
-          <tbody>
-            {students.map(s => (
-              <tr key={s.id as number} className="border-t border-gray-50">
-                <td className="px-3 py-2.5 font-semibold text-xs">{s.name as string}</td>
-                <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{s.present_count as number}/{s.total_days as number}</td>
-                <td className="px-3 py-2.5 text-center text-gray-500 text-xs">{s.personal_count as number}</td>
-                <td className="px-3 py-2.5 text-center text-xs"><span className={`font-bold ${(s.attendance_rate as number) >= 75 ? "text-green-600" : (s.attendance_rate as number) >= 50 ? "text-amber-500" : "text-red-500"}`}>{s.attendance_rate as number}%</span></td>
-                <td className="px-3 py-2.5 text-center">{s.paid ? <span className="badge-paid">✓</span> : <span className="badge-overdue">✗</span>}</td>
-              </tr>
-            ))}
-            {students.length === 0 && <tr><td colSpan={5} className="text-center py-8 text-gray-400">Нет данных</td></tr>}
-          </tbody>
-        </table>
+      {/* Статы */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold text-gray-700">{summary.total_students || 0}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Всего</div>
+        </div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(142,55%,38%)" }}>{summary.paid_count || 0}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Оплатили</div>
+        </div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{summary.unpaid_count || 0}</div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Должники</div>
+        </div>
       </div>
+
+      {/* Карточки учеников */}
+      {students.map(s => {
+        const rate = s.attendance_rate as number;
+        const isGood = rate >= 75;
+        const isMid = rate >= 50;
+        const rateColor = isGood ? "hsl(142,55%,38%)" : isMid ? "hsl(38,85%,40%)" : "hsl(0,72%,40%)";
+
+        return (
+          <div key={s.id as number} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
+            <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
+              <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
+                alt="" style={{ position: "absolute", width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
+            </div>
+            <div className="p-3 flex items-center gap-3 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-oswald font-bold text-gray-500 flex-shrink-0">
+                {ini(s.name as string)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[13px] text-gray-900 truncate">{s.name as string}</div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  Был: {s.present_count as number}/{s.total_days as number} · Перс: {s.personal_count as number}
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1.5">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, rate)}%`, background: rateColor }} />
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <span className="font-oswald font-bold text-base" style={{ color: rateColor }}>{rate}%</span>
+                {s.paid
+                  ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>✓</span>
+                  : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,50%)" }}>✗</span>}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {students.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="BarChart2" size={40} className="mx-auto mb-2 opacity-20" />
+          <p>Нет данных за этот месяц</p>
+        </div>
+      )}
     </div>
   );
 }
