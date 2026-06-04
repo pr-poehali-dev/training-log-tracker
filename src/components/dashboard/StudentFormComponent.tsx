@@ -1,11 +1,14 @@
 import { PrimaryBtn, OutlineBtn, inputCls } from "./trainer-ui";
 
+export type TeamLevel = "regular" | "first" | "national";
+
 export type FormState = {
   name: string; hall: string; hall2: string; grp: string; schedule: string;
   phone: string; iko: string; fee: number; annual_fee_number: string; lvl: string;
   cert: boolean; cert_from: string; cert_to: string;
   birthdate: string; insurance: boolean; insurance_to: string;
   has_sport: boolean; sport_schedule: string;
+  team_level: TeamLevel;
 };
 
 export function addMonths(dateStr: string, months: number): string {
@@ -100,6 +103,29 @@ export function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitL
           </div>
         </div>
       )}
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Состав / уровень</div>
+      <div className="grid grid-cols-3 gap-2">
+        {([
+          { value: "regular",  label: "Обычный",   color: "#9ca3af", bg: "#f3f4f6" },
+          { value: "first",    label: "1 состав",  color: "#92400e", bg: "#fef3c7" },
+          { value: "national", label: "Сборная",   color: "#991b1b", bg: "#fee2e2" },
+        ] as { value: TeamLevel; label: string; color: string; bg: string }[]).map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setForm(p => ({ ...p, team_level: opt.value }))}
+            className="py-2.5 rounded-xl text-xs font-bold border-2 transition-all"
+            style={{
+              background: form.team_level === opt.value ? opt.bg : "#f9fafb",
+              borderColor: form.team_level === opt.value ? opt.color : "#e5e7eb",
+              color: form.team_level === opt.value ? opt.color : "#9ca3af",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Спортивная группа</div>
       <label className="flex items-center gap-2 text-sm cursor-pointer">

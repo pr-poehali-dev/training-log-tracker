@@ -21,6 +21,13 @@ interface StudentCardProps {
   onMarkSport: () => void;
 }
 
+// Цвета канки по уровню состава
+const TEAM_LEVEL_CONFIG = {
+  national: { color: "hsl(0,72%,40%)",   bg: "hsl(0,72%,97%)",   label: "Сборная",   thick: 4 },
+  first:    { color: "hsl(38,85%,45%)",  bg: "hsl(38,90%,96%)",  label: "1 состав",  thick: 4 },
+  regular:  { color: "transparent",      bg: "transparent",       label: "",          thick: 0 },
+} as const;
+
 export function StudentCard({
   s, paid, isPresentMain, isPresentSport,
   togglingPay, togglingMain, togglingSport,
@@ -28,12 +35,20 @@ export function StudentCard({
   onEdit, onArchive, onMarkPay, onMarkMain, onMarkSport,
 }: StudentCardProps) {
   const attended = isPresentMain || isPresentSport;
+  const teamLevel = (s.team_level as string || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
+  const teamCfg = TEAM_LEVEL_CONFIG[teamLevel] ?? TEAM_LEVEL_CONFIG.regular;
+  const hasTeamLevel = teamLevel !== "regular";
 
   return (
     <div
       className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative"
       style={birthday ? { background: "linear-gradient(135deg, #fffbeb 0%, #fff 70%)" } : undefined}
     >
+      {/* Цветная канка-полоска сверху */}
+      {hasTeamLevel && (
+        <div style={{ height: teamCfg.thick, background: teamCfg.color, width: "100%" }} />
+      )}
+
       {/* Иероглиф-водяной знак справа — как на макете */}
       <div
         className="absolute right-0 top-0 bottom-0 pointer-events-none select-none overflow-hidden"
@@ -61,9 +76,14 @@ export function StudentCard({
 
         {/* Аватар с инициалами */}
         <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center font-oswald font-bold text-sm flex-shrink-0 ${
-            birthday ? "bg-yellow-100 text-yellow-600" : "bg-gray-100 text-gray-500"
-          }`}
+          className="w-11 h-11 rounded-xl flex items-center justify-center font-oswald font-bold text-sm flex-shrink-0"
+          style={
+            birthday
+              ? { background: "#fef3c7", color: "#d97706" }
+              : hasTeamLevel
+              ? { background: teamCfg.bg, color: teamCfg.color }
+              : { background: "#f3f4f6", color: "#6b7280" }
+          }
         >
           {birthday ? "🎂" : ini(s.name as string)}
         </div>
@@ -71,11 +91,20 @@ export function StudentCard({
         {/* Основная инфа */}
         <div className="flex-1 min-w-0 pr-2">
 
-          {/* Имя + бейдж NEW */}
+          {/* Имя + бейджи */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-semibold text-[13px] text-gray-900 leading-tight">
               {s.name as string}
             </span>
+            {/* Бейдж состава */}
+            {hasTeamLevel && (
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
+                style={{ background: teamCfg.bg, color: teamCfg.color, border: `1px solid ${teamCfg.color}` }}
+              >
+                {teamCfg.label}
+              </span>
+            )}
             {newStudent && (
               <span
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white leading-none"
