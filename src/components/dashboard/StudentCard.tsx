@@ -1,5 +1,4 @@
 import Icon from "@/components/ui/icon";
-import { ini } from "./trainer-ui";
 
 interface StudentCardProps {
   s: Record<string, unknown>;
@@ -21,11 +20,11 @@ interface StudentCardProps {
   onMarkSport: () => void;
 }
 
-// Цвета канки по уровню состава
+// Конфиг канки (цветная полоска) по уровню состава
 const TEAM_LEVEL_CONFIG = {
-  national: { color: "hsl(0,72%,40%)",   bg: "hsl(0,72%,97%)",   label: "Сборная",   thick: 4 },
-  first:    { color: "hsl(38,85%,45%)",  bg: "hsl(38,90%,96%)",  label: "1 состав",  thick: 4 },
-  regular:  { color: "transparent",      bg: "transparent",       label: "",          thick: 0 },
+  national: { color: "hsl(0,72%,40%)",  bg: "hsl(0,72%,97%)",  label: "Сборная",  stripe: 4 },
+  first:    { color: "hsl(42,90%,42%)", bg: "hsl(42,95%,94%)", label: "1 состав", stripe: 4 },
+  regular:  { color: "",                bg: "",                 label: "",         stripe: 0 },
 } as const;
 
 export function StudentCard({
@@ -35,231 +34,184 @@ export function StudentCard({
   onEdit, onArchive, onMarkPay, onMarkMain, onMarkSport,
 }: StudentCardProps) {
   const attended = isPresentMain || isPresentSport;
-  const teamLevel = (s.team_level as string || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
-  const teamCfg = TEAM_LEVEL_CONFIG[teamLevel] ?? TEAM_LEVEL_CONFIG.regular;
-  const hasTeamLevel = teamLevel !== "regular";
+  const teamLevel = ((s.team_level as string) || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
+  const cfg = TEAM_LEVEL_CONFIG[teamLevel] ?? TEAM_LEVEL_CONFIG.regular;
+  const hasLevel = teamLevel !== "regular";
+
+  // Зал + группа — строка под именем
+  const hallLine = [s.hall, s.hall2].filter(Boolean).join(" · ");
+  const grpLine  = [s.grp, s.lvl].filter(Boolean).join(" ");
+  const subLine  = [hallLine, grpLine].filter(Boolean).join("  ·  ");
 
   return (
-    <div
-      className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative"
-      style={birthday ? { background: "linear-gradient(135deg, #fffbeb 0%, #fff 70%)" } : undefined}
-    >
-      {/* Цветная канка-полоска сверху */}
-      {hasTeamLevel && (
-        <div style={{ height: teamCfg.thick, background: teamCfg.color, width: "100%" }} />
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
+
+      {/* Цветная канка по составу */}
+      {hasLevel && (
+        <div style={{ height: cfg.stripe, background: cfg.color }} />
       )}
 
-      {/* Иероглиф-водяной знак справа — как на макете */}
-      <div
-        className="absolute right-0 top-0 bottom-0 pointer-events-none select-none overflow-hidden"
-        style={{ width: 90, zIndex: 0 }}
-      >
+      {/* Водяной знак — логотип справа */}
+      <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 90, zIndex: 0 }}>
         <img
           src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
           alt=""
-          className="absolute"
-          style={{
-            width: 100,
-            height: 100,
-            opacity: 0.045,
-            right: -10,
-            top: "50%",
-            transform: "translateY(-50%)",
-            objectFit: "contain",
-            filter: "grayscale(1)",
-          }}
+          style={{ position: "absolute", width: 96, height: 96, opacity: 0.045, right: -10, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }}
         />
       </div>
 
-      {/* Верхняя часть карточки */}
-      <div className="p-3 pb-2.5 flex items-start gap-3 relative z-10">
+      {/* ── Верхняя часть ── */}
+      <div className="p-3 pb-2 flex items-start gap-3 relative z-10">
 
-        {/* Аватар с инициалами */}
-        <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center font-oswald font-bold text-sm flex-shrink-0"
-          style={
-            birthday
-              ? { background: "#fef3c7", color: "#d97706" }
-              : hasTeamLevel
-              ? { background: teamCfg.bg, color: teamCfg.color }
-              : { background: "#f3f4f6", color: "#6b7280" }
-          }
-        >
-          {birthday ? "🎂" : ini(s.name as string)}
+        {/* Аватар — логотип федерации */}
+        <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-gray-50"
+          style={birthday ? { background: "#fef3c7" } : undefined}>
+          {birthday ? (
+            <div className="w-full h-full flex items-center justify-center text-xl">🎂</div>
+          ) : (
+            <img
+              src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
+              alt=""
+              className="w-full h-full object-contain"
+            />
+          )}
         </div>
 
-        {/* Основная инфа */}
-        <div className="flex-1 min-w-0 pr-2">
+        {/* Инфо блок */}
+        <div className="flex-1 min-w-0">
 
-          {/* Имя + бейджи */}
+          {/* Строка с именем и бейджами */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-[13px] text-gray-900 leading-tight">
+            <span className="font-bold text-[14px] text-gray-900 leading-tight">
               {s.name as string}
             </span>
-            {/* Бейдж состава */}
-            {hasTeamLevel && (
-              <span
-                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-                style={{ background: teamCfg.bg, color: teamCfg.color, border: `1px solid ${teamCfg.color}` }}
-              >
-                {teamCfg.label}
+            {newStudent && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md text-white leading-none"
+                style={{ background: "hsl(265,60%,55%)" }}>
+                NEW
               </span>
             )}
-            {newStudent && (
-              <span
-                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white leading-none"
-                style={{ background: "hsl(265,60%,55%)" }}
-              >
-                NEW
+            {hasLevel && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-none"
+                style={{ background: cfg.bg, color: cfg.color }}>
+                {cfg.label}
               </span>
             )}
             {birthday && <span className="text-xs">🎉</span>}
           </div>
 
-          {/* Зал · Время */}
-          <div className="text-[11px] text-gray-400 mt-0.5 font-medium leading-tight">
-            {[s.hall, s.hall2].filter(Boolean).join(" · ")}
-            {s.grp ? ` · ${s.grp}` : ""}
+          {/* Зал · Группа */}
+          {subLine && (
+            <div className="text-[11px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wide leading-tight">
+              {subLine}
+            </div>
+          )}
+
+          {/* Расписание + дата */}
+          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+            {s.schedule && (
+              <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                <Icon name="Clock" size={11} />
+                <span>{s.schedule as string}</span>
+              </div>
+            )}
+            {s.created_at && (
+              <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                <Icon name="CalendarDays" size={11} />
+                <span>с {new Date(s.created_at as string).toLocaleDateString("ru", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+              </div>
+            )}
           </div>
 
-          {/* Расписание */}
-          {s.schedule && (
-            <div className="flex items-center gap-1 mt-0.5 text-[11px] text-gray-400">
-              <Icon name="Clock" size={10} />
-              <span>{s.schedule as string}</span>
-            </div>
-          )}
-
-          {/* Дата начала */}
-          {s.created_at && (
-            <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-300">
-              <Icon name="CalendarDays" size={10} />
-              <span>с {new Date(s.created_at as string).toLocaleDateString("ru", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
-            </div>
-          )}
-
-          {/* Бейджи */}
+          {/* Бейджи — тип группы + документы */}
           <div className="flex flex-wrap gap-1 mt-1.5">
-            {/* Тип группы */}
             {s.has_sport ? (
-              <span
-                className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}
-              >
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>
                 🏆 Спортивная
               </span>
             ) : (
-              <span
-                className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "hsl(0,0%,93%)", color: "hsl(0,0%,42%)" }}
-              >
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "#f3f4f6", color: "#6b7280" }}>
                 🥇 Основная
               </span>
             )}
-
-            {/* Документы */}
-            {!s.cert && (
-              <span className="badge-absent">Нет справки</span>
-            )}
-            {s.cert && !certOk && (
-              <span className="badge-absent">Справка просрочена</span>
-            )}
-            {s.insurance && !insOk && (
-              <span className="badge-absent">Страховка !</span>
-            )}
+            {!s.cert && <span className="badge-absent">Нет справки</span>}
+            {s.cert && !certOk && <span className="badge-absent">Справка !</span>}
+            {s.insurance && !insOk && <span className="badge-absent">Страховка !</span>}
             {s.annual_fee_number && (
-              <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "hsl(0,0%,93%)", color: "hsl(0,0%,42%)" }}
-              >
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                 № {s.annual_fee_number as string}
               </span>
             )}
           </div>
         </div>
 
-        {/* Кнопки редакт + меню */}
-        <div className="flex flex-col items-center gap-1 flex-shrink-0 -mr-0.5">
-          <button
-            onClick={onEdit}
-            className="w-7 h-7 flex items-center justify-center text-gray-350 hover:text-blue-500 transition-colors"
-          >
+        {/* Карандаш + три точки */}
+        <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+          <button onClick={onEdit}
+            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors">
             <Icon name="Pencil" size={15} />
           </button>
-          <button
-            onClick={onArchive}
-            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
-          >
+          <button onClick={onArchive}
+            className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors">
             <Icon name="MoreVertical" size={15} />
           </button>
         </div>
       </div>
 
-      {/* Нижняя строка кнопок — точь-в-точь по макету */}
+      {/* ── Нижняя панель кнопок ── */}
       <div className="flex border-t border-gray-100 relative z-10" style={{ minHeight: 44 }}>
 
         {/* Справка */}
         <button
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100"
-        >
-          <Icon name="FileText" size={13} />
-          Справка
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+          <Icon name="FileText" size={15} />
+          <span>Справка</span>
         </button>
 
         {/* Оплата */}
         <button
           disabled={togglingPay || paid}
           onClick={paid ? undefined : onMarkPay}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-semibold transition-colors border-r border-gray-100"
-          style={{ color: paid ? "hsl(142,55%,35%)" : "hsl(0,0%,45%)" }}
-        >
-          {paid ? (
-            <><Icon name="CircleDollarSign" size={13} />Оплата</>
-          ) : togglingPay ? (
-            <><Icon name="Loader" size={13} />...</>
-          ) : (
-            <><Icon name="CircleDollarSign" size={13} />Оплата</>
-          )}
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition-colors border-r border-gray-100"
+          style={{ color: paid ? "hsl(142,55%,35%)" : "#6b7280" }}>
+          <Icon name="CircleDollarSign" size={15} />
+          <span>{togglingPay ? "..." : "Оплата"}</span>
         </button>
 
-        {/* Отметить посещение / Посещён */}
+        {/* Отметить посещение */}
         {canEdit && (
           attended ? (
-            <div
-              className="flex-[1.6] flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold"
-              style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}
-            >
-              <Icon name="Check" size={13} />
-              Посещение ✓
+            <div className="flex-[1.8] flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold"
+              style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>
+              <Icon name="Check" size={15} />
+              <span>Посещение ✓</span>
             </div>
           ) : (
             <button
               disabled={togglingMain}
               onClick={onMarkMain}
-              className="flex-[1.6] flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-white active:opacity-80 disabled:opacity-60 transition-all"
-              style={{ background: "hsl(0,72%,40%)" }}
-            >
-              {togglingMain ? (
-                <><Icon name="Loader" size={13} />...</>
-              ) : (
-                <><Icon name="Check" size={13} />Отметить посещение</>
-              )}
+              className="flex-[1.8] flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold text-white active:opacity-80 disabled:opacity-60 transition-all"
+              style={{ background: "hsl(0,72%,40%)" }}>
+              <Icon name="Check" size={15} />
+              <span>{togglingMain ? "..." : "Отметить посещение"}</span>
             </button>
           )
         )}
 
-        {/* Спорт-группа (доп. кнопка) */}
+        {/* Спорт-группа */}
         {s.has_sport && canEdit && (
           <button
             disabled={togglingSport}
             onClick={isPresentSport ? undefined : onMarkSport}
-            className="px-2.5 py-2.5 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1"
+            className="px-2.5 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex flex-col items-center gap-0.5"
             style={{
               color: isPresentSport ? "hsl(200,70%,35%)" : "hsl(200,70%,45%)",
               background: isPresentSport ? "hsl(200,55%,93%)" : "transparent",
-            }}
-          >
-            {togglingSport ? "..." : isPresentSport ? "✅" : "Спорт"}
+            }}>
+            <span>{togglingSport ? "..." : isPresentSport ? "✅" : "⚽"}</span>
+            <span>Спорт</span>
           </button>
         )}
       </div>
