@@ -33,7 +33,7 @@ export function StudentCard({
   canEdit, certOk, insOk, birthday, newStudent,
   onEdit, onArchive, onMarkPay, onMarkMain, onMarkSport,
 }: StudentCardProps) {
-  const attended = isPresentMain || isPresentSport;
+  const attended = isPresentMain; // спорт — отдельно, не влияет на основное посещение
   const teamLevel = ((s.team_level as string) || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
   const cfg = TEAM_LEVEL_CONFIG[teamLevel] ?? TEAM_LEVEL_CONFIG.regular;
   const hasLevel = teamLevel !== "regular";
@@ -184,38 +184,38 @@ export function StudentCard({
           <span>{togglingPay ? "..." : "Оплата"}</span>
         </button>
 
-        {/* Отметить посещение */}
+        {/* Отметить посещение — основная группа */}
         {canEdit && (
           attended ? (
-            <div className="flex-[1.8] flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold"
+            <div className="flex-[1.8] flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold"
               style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>
-              <Icon name="Check" size={15} />
-              <span>Посещение ✓</span>
+              <Icon name="Check" size={14} />
+              <span>Посещение</span>
             </div>
           ) : (
             <button
               disabled={togglingMain}
               onClick={onMarkMain}
-              className="flex-[1.8] flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold text-white active:opacity-80 disabled:opacity-60 transition-all"
+              className="flex-[1.8] flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-white active:opacity-80 disabled:opacity-60 transition-all"
               style={{ background: "hsl(0,72%,40%)" }}>
-              <Icon name="Check" size={15} />
+              <Icon name="Check" size={14} />
               <span>{togglingMain ? "..." : "Отметить посещение"}</span>
             </button>
           )
         )}
 
-        {/* Спорт-группа */}
+        {/* Спортивная группа — отдельная кнопка */}
         {s.has_sport && canEdit && (
           <button
             disabled={togglingSport}
             onClick={isPresentSport ? undefined : onMarkSport}
-            className="px-2.5 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex flex-col items-center gap-0.5"
+            className="px-3 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1"
             style={{
               color: isPresentSport ? "hsl(200,70%,35%)" : "hsl(200,70%,45%)",
               background: isPresentSport ? "hsl(200,55%,93%)" : "transparent",
             }}>
-            <span>{togglingSport ? "..." : isPresentSport ? "✅" : "⚽"}</span>
-            <span>Спорт</span>
+            <Icon name="Trophy" size={13} />
+            <span>{togglingSport ? "..." : "Спорт"}</span>
           </button>
         )}
       </div>
