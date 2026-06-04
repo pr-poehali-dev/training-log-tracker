@@ -204,19 +204,25 @@ export function StudentCard({
           )
         )}
 
-        {/* Спортивная группа — отдельная кнопка */}
+        {/* Спортивная группа — отдельная независимая кнопка */}
         {s.has_sport && canEdit && (
-          <button
-            disabled={togglingSport}
-            onClick={isPresentSport ? undefined : onMarkSport}
-            className="px-3 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1"
-            style={{
-              color: isPresentSport ? "hsl(200,70%,35%)" : "hsl(200,70%,45%)",
-              background: isPresentSport ? "hsl(200,55%,93%)" : "transparent",
-            }}>
-            <Icon name="Trophy" size={13} />
-            <span>{togglingSport ? "..." : "Спорт"}</span>
-          </button>
+          isPresentSport ? (
+            <div
+              className="px-3 py-2 text-[11px] font-bold border-l border-gray-100 flex items-center gap-1"
+              style={{ color: "hsl(200,70%,35%)", background: "hsl(200,55%,93%)" }}>
+              <Icon name="Trophy" size={13} />
+              <span>Спорт ✓</span>
+            </div>
+          ) : (
+            <button
+              disabled={togglingSport}
+              onClick={onMarkSport}
+              className="px-3 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1 active:opacity-70 disabled:opacity-50"
+              style={{ color: "hsl(200,70%,45%)" }}>
+              <Icon name="Trophy" size={13} />
+              <span>{togglingSport ? "..." : "Спорт"}</span>
+            </button>
+          )
         )}
       </div>
     </div>
