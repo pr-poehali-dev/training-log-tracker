@@ -55,16 +55,17 @@ export default function AdminDataTab() {
 
   const [toggling, setToggling] = useState<Set<string>>(new Set());
 
-  const isPresent = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present);
-  const isPaid    = (sid: number) => (payData as Record<string, unknown>[]).some(p => p.student_id === sid && p.paid);
+  const isPresent      = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present && (a.group_type ?? "main") === "main");
+  const isPresentSport = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present && a.group_type === "sport");
+  const isPaid         = (sid: number) => (payData as Record<string, unknown>[]).some(p => p.student_id === sid && p.paid);
   const isBirthday = (s: Record<string, unknown>) => s.birthdate && (s.birthdate as string).slice(5) === todayMD;
   const isCertOk   = (s: Record<string, unknown>) => s.cert_to && (s.cert_to as string) >= today;
   const isInsOk    = (s: Record<string, unknown>) => s.insurance && s.insurance_to && (s.insurance_to as string) >= today;
 
-  const toggleAtt = async (sid: number, current: boolean) => {
-    const k = `a${sid}`;
+  const toggleAtt = async (sid: number, current: boolean, groupType: "main" | "sport" = "main") => {
+    const k = `a${sid}_${groupType}`;
     setToggling(prev => new Set([...prev, k]));
-    try { await attendanceApi.mark({ student_id: sid, date, present: !current }); qc.invalidateQueries({ queryKey: ["att-admin"] }); }
+    try { await attendanceApi.mark({ student_id: sid, date, present: !current, group_type: groupType }); qc.invalidateQueries({ queryKey: ["att-admin"] }); }
     finally { setToggling(prev => { const n = new Set(prev); n.delete(k); return n; }); }
   };
   const togglePay = async (sid: number, current: boolean) => {
@@ -241,12 +242,14 @@ export default function AdminDataTab() {
           {/* Список учеников */}
           <div className="flex flex-col gap-2">
             {filtered.map(s => {
-              const sid     = s.id as number;
-              const here    = isPresent(sid);
-              const paid    = isPaid(sid);
-              const birthday = isBirthday(s);
-              const certOk  = isCertOk(s);
-              const insOk   = isInsOk(s);
+              const sid       = s.id as number;
+              const here      = isPresent(sid);
+              const hereSport = isPresentSport(sid);
+              const hasSport  = Boolean(s.has_sport);
+              const paid      = isPaid(sid);
+              const birthday  = isBirthday(s);
+              const certOk    = isCertOk(s);
+              const insOk     = isInsOk(s);
 
               return (
                 <div key={sid}
@@ -292,17 +295,36 @@ export default function AdminDataTab() {
                     </div>
                   </div>
                   <div className="flex border-t border-gray-100">
+                    {/* Оплата */}
                     <button onClick={() => togglePay(sid, paid)} disabled={toggling.has(`p${sid}`)}
                       className={`flex-1 py-2 text-xs font-bold border-r border-gray-100 transition-all flex items-center justify-center gap-1.5 ${paid ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}>
                       <Icon name="CircleDollarSign" size={13} />
                       {paid ? "Оплачен (снять)" : "Оплатить"}
                     </button>
-                    <button onClick={() => toggleAtt(sid, here)} disabled={toggling.has(`a${sid}`)}
+
+                    {/* Основное посещение */}
+                    <button
+                      onClick={() => toggleAtt(sid, here, "main")}
+                      disabled={toggling.has(`a${sid}_main`)}
                       className={`flex-1 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${here ? "bg-green-50 text-green-700" : "text-white"}`}
                       style={!here ? { background: "hsl(0,72%,40%)" } : undefined}>
                       <Icon name="Check" size={13} />
-                      {here ? "Был (снять)" : "Отметить посещение"}
+                      {here ? "Был (снять)" : "Отметить"}
                     </button>
+
+                    {/* Спортивная группа — только если has_sport */}
+                    {hasSport && (
+                      <button
+                        onClick={() => toggleAtt(sid, hereSport, "sport")}
+                        disabled={toggling.has(`a${sid}_sport`)}
+                        className="px-2.5 py-2 text-xs font-bold border-l border-gray-100 transition-all flex items-center justify-center gap-1"
+                        style={hereSport
+                          ? { background: "hsl(200,55%,93%)", color: "hsl(200,70%,35%)" }
+                          : { color: "hsl(200,70%,45%)" }}>
+                        <Icon name="Trophy" size={12} />
+                        <span>{hereSport ? "✓" : "Спорт"}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
