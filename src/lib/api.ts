@@ -176,6 +176,21 @@ export const pushApi = {
   test: () => req(`${URLS.push}?action=test`, { method: "POST", body: "{}" }),
 };
 
+// ── EXPENSES ──────────────────────────────────────────────────
+export const expensesApi = {
+  byMonth: (month: string) =>
+    req(`${URLS.journal}?section=expenses&month=${month}`),
+
+  create: (body: { title: string; amount: number; date: string; category?: string }) =>
+    req(`${URLS.journal}?section=expenses`, { method: "POST", body: JSON.stringify(body) }),
+
+  update: (id: number, body: { title: string; amount: number; date: string; category?: string }) =>
+    req(`${URLS.journal}?section=expenses&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  remove: (id: number) =>
+    req(`${URLS.journal}?section=expenses&id=${id}`, { method: "DELETE" }),
+};
+
 // ── REPORTS ───────────────────────────────────────────────────
 export const reportsApi = {
   get: (month: string, trainerId?: number) => {

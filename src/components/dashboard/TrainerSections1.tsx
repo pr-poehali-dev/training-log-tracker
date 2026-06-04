@@ -380,10 +380,15 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
   const qc = useQueryClient();
   const { data: payData = [], isLoading } = useQuery({ queryKey: ["pay-month", month, user.id], queryFn: () => paymentsApi.byMonth(month) });
   const [toggling, setToggling] = useState<Set<number>>(new Set());
+  const [filterGrp, setFilterGrp] = useState("");
 
-  const paidCount = (payData as Record<string, unknown>[]).filter(p => p.paid).length;
-  const total = payData.length;
-  const revenue = (payData as Record<string, unknown>[]).filter(p => p.paid).reduce((s, p) => s + (p.fee as number || 0), 0);
+  const allPayData = payData as Record<string, unknown>[];
+  const grps = [...new Set(allPayData.map(p => p.grp as string).filter(Boolean))];
+
+  const filtered = filterGrp ? allPayData.filter(p => p.grp === filterGrp) : allPayData;
+  const paidCount = filtered.filter(p => p.paid).length;
+  const total = filtered.length;
+  const revenue = filtered.filter(p => p.paid).reduce((s, p) => s + (p.fee as number || 0), 0);
 
   const markPay = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
@@ -395,6 +400,27 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
   return (
     <div className="flex flex-col gap-3">
       <h1 className="section-title">ОПЛАТЫ <span className="text-gray-400 font-golos font-normal text-sm">({total})</span></h1>
+
+      {/* Фильтр по группам */}
+      {grps.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Группа</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setFilterGrp("")}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterGrp ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>
+              Все
+            </button>
+            {grps.map(g => (
+              <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterGrp === g ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Статы */}
       <div className="grid grid-cols-3 gap-2">
@@ -427,26 +453,25 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
       )}
 
       {/* Список */}
-      {(payData as Record<string, unknown>[]).map(p => {
+      {filtered.map(p => {
         const sid = p.student_id as number;
         const t = toggling.has(sid);
         return (
           <div key={sid} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
-            {/* Водяной знак */}
             <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
               <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
                 alt="" className="absolute" style={{ width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
             </div>
-
             <div className="p-3 flex items-center gap-3 relative z-10">
-              {/* Аватар */}
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-oswald font-bold flex-shrink-0 ${p.paid ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
                 {ini(p.name as string)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[13px] text-gray-900">{p.name as string}</div>
                 <div className="text-[11px] text-gray-400 mt-0.5">
-                  {(p.fee as number)?.toLocaleString("ru")} ₽ · {p.hall as string || ""}
+                  {(p.fee as number)?.toLocaleString("ru")} ₽
+                  {p.grp ? ` · ${p.grp}` : ""}
+                  {p.hall ? ` · ${p.hall}` : ""}
                 </div>
               </div>
               {p.paid ? (
@@ -465,7 +490,7 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
         );
       })}
 
-      {(payData as []).length === 0 && (
+      {filtered.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <Icon name="CircleDollarSign" size={40} className="mx-auto mb-2 opacity-30" />
           <p>Нет данных об оплатах</p>
@@ -480,14 +505,27 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
   const qc = useQueryClient();
   const { data: students = [], isLoading } = useQuery({ queryKey: ["students", user.id], queryFn: () => studentsApi.list() });
   const { data: attMonth = [] } = useQuery({ queryKey: ["att-month", month, user.id], queryFn: () => attendanceApi.byMonth(month) });
+  const { data: attToday = [] } = useQuery({ queryKey: ["att-date", date, user.id], queryFn: () => attendanceApi.byDate(date) });
   const [editTpm, setEditTpm] = useState(false);
   const [tpm, setTpm] = useState(user.trainings_per_month ?? 13);
   const [savingTpm, setSavingTpm] = useState(false);
+  const [filterGrp, setFilterGrp] = useState("");
 
   if (isLoading) return <Loading />;
 
   const att = attMonth as Record<string, unknown>[];
+  const attTodayArr = attToday as Record<string, unknown>[];
   const totalTrainings = user.trainings_per_month ?? 13;
+  const allStudents = students as Record<string, unknown>[];
+
+  // Фильтр по группам
+  const grps = [...new Set(allStudents.map(s => s.grp as string).filter(Boolean))];
+  const filteredStudents = filterGrp ? allStudents.filter(s => s.grp === filterGrp) : allStudents;
+
+  // Итог сегодняшнего дня
+  const todayPresentMain  = attTodayArr.filter(a => a.present && (a.group_type ?? "main") === "main").length;
+  const todayPresentSport = attTodayArr.filter(a => a.present && a.group_type === "sport").length;
+  const todayTotal = filteredStudents.length;
 
   // Уникальные дни для каждого типа
   const daysMain  = [...new Set(att.filter(a => (a.group_type ?? "main") === "main").map(a => a.date as string))].sort();
@@ -510,13 +548,61 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
     } finally { setSavingTpm(false); }
   };
 
-  const hasSportStudents = (students as Record<string, unknown>[]).some(s => s.has_sport);
+  const hasSportStudents = allStudents.some(s => s.has_sport);
+
+  // Дата выбранного дня на русском
+  const selectedDateRu = new Date(date + "T00:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 
   return (
     <div className="flex flex-col gap-3">
-      <h1 className="section-title">ПОСЕЩЕНИЯ <span className="text-gray-400 font-golos font-normal text-sm">({(students as []).length})</span></h1>
+      <h1 className="section-title">ПОСЕЩЕНИЯ <span className="text-gray-400 font-golos font-normal text-sm">({filteredStudents.length})</span></h1>
 
-      {/* Статы */}
+      {/* Итог сегодняшнего дня */}
+      <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100">
+        <div className="flex items-center gap-2 mb-2">
+          <Icon name="CalendarDays" size={14} className="text-gray-400" />
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{selectedDateRu} — итог дня</span>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex-1 text-center">
+            <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{todayPresentMain}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">из {todayTotal} основная</div>
+          </div>
+          {hasSportStudents && (
+            <div className="flex-1 text-center border-l border-gray-100">
+              <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(200,70%,42%)" }}>{todayPresentSport}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">спортивная</div>
+            </div>
+          )}
+          <div className="flex-1 text-center border-l border-gray-100">
+            <div className="text-2xl font-oswald font-bold text-gray-700">{todayTotal - todayPresentMain}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">отсутствуют</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Фильтр по группам */}
+      {grps.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Группа</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setFilterGrp("")}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterGrp ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>
+              Все
+            </button>
+            {grps.map(g => (
+              <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterGrp === g ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Статы месяца */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
           <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{daysMain.length}</div>
@@ -549,7 +635,7 @@ export function AttendanceSection({ user, date, month }: { user: AppUser; date: 
       </div>
 
       {/* Карточки учеников */}
-      {(students as Record<string, unknown>[]).map(s => {
+      {filteredStudents.map(s => {
         const sid = s.id as number;
         const hasSport = Boolean(s.has_sport);
         const cntMain  = countMain(sid);

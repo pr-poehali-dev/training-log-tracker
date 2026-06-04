@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { studentsApi, personalApi, notesApi, reportsApi } from "@/lib/api";
+import { studentsApi, personalApi, notesApi, reportsApi, expensesApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 
@@ -293,6 +293,187 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
           <p>Нет данных за этот месяц</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── EXPENSES ─────────────────────────────────────────────────────────────────
+export function ExpensesSection({ user, month }: { user: AppUser; month: string }) {
+  const qc = useQueryClient();
+  const { data: expenses = [], isLoading } = useQuery({
+    queryKey: ["expenses", month, user.id],
+    queryFn: () => expensesApi.byMonth(month),
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ title: "", amount: "", date: todayStr(), category: "" });
+
+  const list = expenses as Record<string, unknown>[];
+  const totalAmount = list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  // Уникальные категории для быстрого выбора
+  const categories = [...new Set(list.map(e => e.category as string).filter(Boolean))];
+
+  const openAdd = () => {
+    setEditId(null);
+    setForm({ title: "", amount: "", date: todayStr(), category: "" });
+    setShowForm(true);
+  };
+
+  const openEdit = (e: Record<string, unknown>) => {
+    setEditId(e.id as number);
+    setForm({
+      title: e.title as string,
+      amount: String(e.amount),
+      date: (e.date as string).slice(0, 10),
+      category: (e.category as string) || "",
+    });
+    setShowForm(true);
+  };
+
+  const save = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    if (!form.title.trim() || !form.amount || !form.date) return;
+    setSaving(true);
+    try {
+      const payload = { title: form.title.trim(), amount: parseFloat(form.amount), date: form.date, category: form.category.trim() };
+      if (editId) await expensesApi.update(editId, payload);
+      else await expensesApi.create(payload);
+      qc.invalidateQueries({ queryKey: ["expenses"] });
+      setShowForm(false);
+    } finally { setSaving(false); }
+  };
+
+  const del = async (id: number) => {
+    if (!window.confirm("Удалить расход?")) return;
+    await expensesApi.remove(id);
+    qc.invalidateQueries({ queryKey: ["expenses"] });
+  };
+
+  if (isLoading) return <Loading />;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h1 className="section-title">РАСХОДЫ <span className="text-gray-400 font-golos font-normal text-sm">({list.length})</span></h1>
+        <PrimaryBtn onClick={openAdd}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
+      </div>
+
+      {/* Итого */}
+      <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "hsl(0,72%,96%)" }}>
+          <Icon name="Receipt" size={18} style={{ color: "hsl(0,72%,40%)" }} />
+        </div>
+        <div>
+          <div className="text-[10px] text-gray-400 uppercase tracking-wide">Итого за месяц</div>
+          <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>
+            {totalAmount.toLocaleString("ru")} ₽
+          </div>
+        </div>
+      </div>
+
+      {/* Список расходов */}
+      {list.map(e => (
+        <div key={e.id as number} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+          <div className="p-3 flex items-start gap-3">
+            {/* Дата */}
+            <div className="flex-shrink-0 text-center pt-0.5">
+              <div className="text-xs font-bold text-gray-900 font-mono">
+                {(e.date as string).slice(8, 10)}
+              </div>
+              <div className="text-[10px] text-gray-400 uppercase">
+                {new Date((e.date as string).slice(0, 10) + "T00:00:00").toLocaleDateString("ru-RU", { month: "short" })}
+              </div>
+            </div>
+            <div className="w-px self-stretch bg-gray-100 flex-shrink-0 mx-1" />
+            {/* Инфо */}
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-[13px] text-gray-900">{e.title as string}</div>
+              {e.category && (
+                <div className="mt-0.5">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                    {e.category as string}
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Сумма */}
+            <div className="flex-shrink-0 text-right">
+              <div className="font-oswald font-bold text-base" style={{ color: "hsl(0,72%,40%)" }}>
+                {Number(e.amount).toLocaleString("ru")} ₽
+              </div>
+            </div>
+          </div>
+          <div className="flex border-t border-gray-100">
+            <button onClick={() => openEdit(e)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+              <Icon name="Pencil" size={12} />Изменить
+            </button>
+            <button onClick={() => del(e.id as number)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold hover:bg-red-50 transition-colors"
+              style={{ color: "hsl(0,72%,50%)" }}>
+              <Icon name="Trash2" size={12} />Удалить
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {list.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <Icon name="Receipt" size={40} className="mx-auto mb-2 opacity-20" />
+          <p>Нет расходов за этот месяц</p>
+        </div>
+      )}
+
+      {/* Форма добавления / редактирования */}
+      <BottomSheet open={showForm} onClose={() => setShowForm(false)} title={editId ? "Редактировать расход" : "Новый расход"}>
+        <form onSubmit={save} className="flex flex-col gap-3">
+          <input
+            className={inputCls}
+            placeholder="Название расхода *"
+            value={form.title}
+            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+            required
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              className={inputCls}
+              type="number"
+              placeholder="Сумма ₽ *"
+              min="0"
+              step="0.01"
+              value={form.amount}
+              onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+              required
+            />
+            <input
+              className={inputCls}
+              type="date"
+              value={form.date}
+              onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+              required
+            />
+          </div>
+          <input
+            className={inputCls}
+            placeholder="Статья расходов (напр. хозтовары)"
+            value={form.category}
+            onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+            list="dl-categories"
+          />
+          {categories.length > 0 && (
+            <datalist id="dl-categories">
+              {categories.map(c => <option key={c} value={c} />)}
+            </datalist>
+          )}
+          <div className="flex gap-2 pt-1">
+            <OutlineBtn onClick={() => setShowForm(false)}>Отмена</OutlineBtn>
+            <PrimaryBtn type="submit" disabled={saving}>{saving ? "..." : "Сохранить"}</PrimaryBtn>
+          </div>
+        </form>
+      </BottomSheet>
     </div>
   );
 }

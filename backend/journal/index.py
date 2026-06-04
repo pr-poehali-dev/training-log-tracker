@@ -100,14 +100,6 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет прав", 403)
 
-            # тренер не может снять уже поставленную отметку
-            if role == "trainer":
-                cur.execute(f"SELECT present FROM {S}.attendance WHERE student_id=%s AND date=%s AND group_type=%s", (student_id, date, group_type))
-                existing = cur.fetchone()
-                if existing and existing[0] and not present:
-                    cur.close(); conn.close()
-                    return err("Нельзя снять уже поставленное посещение", 403)
-
             cur.execute(f"""
                 INSERT INTO {S}.attendance (student_id, trainer_id, date, present, group_type)
                 VALUES (%s,%s,%s,%s,%s)
@@ -306,6 +298,76 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет прав", 403)
             cur.execute(f"DELETE FROM {S}.notes WHERE id=%s", (nid,))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Удалено"})
+
+    # ──── EXPENSES ─────────────────────────────────────────────
+    if section == "expenses":
+
+        if method == "GET":
+            month = qs.get("month")
+            trainer_filter = qs.get("trainer_id") if role == "admin" else uid
+            if not month:
+                cur.close(); conn.close()
+                return err("Укажите month")
+            cur.execute(f"""
+                SELECT id, trainer_id, title, amount, date, category, created_at
+                FROM {S}.expenses
+                WHERE trainer_id=%s AND to_char(date,'YYYY-MM')=%s
+                ORDER BY date DESC, id DESC
+            """, (trainer_filter, month))
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            cur.close(); conn.close()
+            return ok(rows)
+
+        if method == "POST":
+            title    = (body.get("title") or "").strip()
+            amount   = float(body.get("amount") or 0)
+            date_val = body.get("date") or ""
+            category = (body.get("category") or "").strip()
+            if not title or not date_val:
+                cur.close(); conn.close()
+                return err("Нет названия или даты")
+            cur.execute(f"""
+                INSERT INTO {S}.expenses (trainer_id, title, amount, date, category)
+                VALUES (%s,%s,%s,%s,%s) RETURNING id
+            """, (uid, title, amount, date_val, category))
+            new_id = cur.fetchone()[0]
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"id": new_id, "message": "Добавлено"})
+
+        if method == "PUT":
+            eid   = qs.get("id")
+            if not eid:
+                cur.close(); conn.close()
+                return err("Нет id")
+            cur.execute(f"SELECT trainer_id FROM {S}.expenses WHERE id=%s", (eid,))
+            row = cur.fetchone()
+            if not row or (role != "admin" and str(row[0]) != str(uid)):
+                cur.close(); conn.close()
+                return err("Нет прав", 403)
+            cur.execute(f"""
+                UPDATE {S}.expenses SET title=%s, amount=%s, date=%s, category=%s WHERE id=%s
+            """, ((body.get("title") or "").strip(), float(body.get("amount") or 0),
+                  body.get("date"), (body.get("category") or "").strip(), eid))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Обновлено"})
+
+        if method == "DELETE":
+            eid = qs.get("id")
+            if not eid:
+                cur.close(); conn.close()
+                return err("Нет id")
+            cur.execute(f"SELECT trainer_id FROM {S}.expenses WHERE id=%s", (eid,))
+            row = cur.fetchone()
+            if not row or (role != "admin" and str(row[0]) != str(uid)):
+                cur.close(); conn.close()
+                return err("Нет прав", 403)
+            cur.execute(f"DELETE FROM {S}.expenses WHERE id=%s", (eid,))
             conn.commit()
             cur.close(); conn.close()
             return ok({"message": "Удалено"})
