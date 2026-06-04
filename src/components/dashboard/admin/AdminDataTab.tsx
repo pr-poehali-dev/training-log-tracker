@@ -293,13 +293,15 @@ export default function AdminDataTab() {
                   </div>
                   <div className="flex border-t border-gray-100">
                     <button onClick={() => togglePay(sid, paid)} disabled={toggling.has(`p${sid}`)}
-                      className={`flex-1 py-2 text-xs font-bold border-r border-gray-100 transition-all ${paid ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}>
-                      {paid ? "✓ Оплачен (снять)" : "💰 Оплатить"}
+                      className={`flex-1 py-2 text-xs font-bold border-r border-gray-100 transition-all flex items-center justify-center gap-1.5 ${paid ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}>
+                      <Icon name="CircleDollarSign" size={13} />
+                      {paid ? "Оплачен (снять)" : "Оплатить"}
                     </button>
                     <button onClick={() => toggleAtt(sid, here)} disabled={toggling.has(`a${sid}`)}
-                      className={`flex-1 py-2 text-xs font-bold transition-all ${here ? "bg-green-50 text-green-700" : "text-white"}`}
+                      className={`flex-1 py-2 text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${here ? "bg-green-50 text-green-700" : "text-white"}`}
                       style={!here ? { background: "hsl(0,72%,40%)" } : undefined}>
-                      {here ? "✅ Был (снять)" : "● Отметить посещение"}
+                      <Icon name="Check" size={13} />
+                      {here ? "Был (снять)" : "Отметить посещение"}
                     </button>
                   </div>
                 </div>
