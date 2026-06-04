@@ -63,19 +63,23 @@ export function StudentCard({
       {/* ── Верхняя часть ── */}
       <div className="p-3 pb-2 flex items-start gap-3 relative z-10">
 
-        {/* Аватар — логотип федерации */}
-        <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-gray-50"
-          style={birthday ? { background: "#fef3c7" } : undefined}>
-          {birthday ? (
-            <div className="w-full h-full flex items-center justify-center text-xl">🎂</div>
-          ) : (
-            <img
-              src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
-              alt=""
-              className="w-full h-full object-contain"
-            />
-          )}
-        </div>
+        {/* Аватар — эмблема Киокушин, цвет по составу */}
+        {birthday ? (
+          <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl flex-shrink-0 bg-yellow-50">🎂</div>
+        ) : (
+          <img
+            src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/45f0f2e8-11f0-4671-89d6-6b0b56fd7d6b.jpg"
+            alt=""
+            className="w-11 h-11 object-contain flex-shrink-0 rounded-full"
+            style={{
+              filter: teamLevel === "national"
+                ? "none"
+                : teamLevel === "first"
+                ? "sepia(1) saturate(5) hue-rotate(5deg) brightness(1.05)"
+                : "grayscale(1) brightness(1.15) opacity(0.7)",
+            }}
+          />
+        )}
 
         {/* Инфо блок */}
         <div className="flex-1 min-w-0">
