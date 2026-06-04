@@ -16,10 +16,22 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState({ student_id: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "" });
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filterPaid, setFilterPaid] = useState<"" | "paid" | "unpaid">("");
 
-  const totalRev = (sessions as Record<string, unknown>[]).filter(p => p.paid).reduce((s, p) => s + (p.cost as number), 0);
+  const allSessions = sessions as Record<string, unknown>[];
+  const allStudentsData = students as Record<string, unknown>[];
 
-  const openAdd = () => { setEditId(null); setForm({ student_id: (students as Record<string, unknown>[])[0]?.id?.toString() || "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "" }); setShowForm(true); };
+  const filteredSessions = allSessions.filter(p => {
+    if (search && !(p.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterPaid === "paid"   && !p.paid) return false;
+    if (filterPaid === "unpaid" &&  p.paid) return false;
+    return true;
+  });
+
+  const totalRev = filteredSessions.filter(p => p.paid).reduce((s, p) => s + (p.cost as number), 0);
+
+  const openAdd = () => { setEditId(null); setForm({ student_id: allStudentsData[0]?.id?.toString() || "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "" }); setShowForm(true); };
   const openEdit = (p: Record<string, unknown>) => { setEditId(p.id as number); setForm({ student_id: String(p.student_id), date: p.date as string, duration: p.duration as number, cost: p.cost as number, paid: p.paid as boolean, note: p.note as string || "" }); setShowForm(true); };
 
   const save = async (e: React.FormEvent) => {
@@ -39,14 +51,46 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="section-title">ПЕРСОНАЛ</h1>
+        <h1 className="section-title">ПЕРСОНАЛ <span className="text-gray-400 font-golos font-normal text-sm">({filteredSessions.length})</span></h1>
         <PrimaryBtn onClick={openAdd}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
       </div>
+
+      {/* Поиск */}
+      <div className="relative">
+        <Icon name="Search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 transition"
+          placeholder="Поиск по имени..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><Icon name="X" size={14} /></button>}
+      </div>
+
+      {/* Фильтр по статусу */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Статус</div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setFilterPaid("")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "" ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>Все</button>
+          <button onClick={() => setFilterPaid(filterPaid === "paid" ? "" : "paid")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "paid" ? { background: "hsl(142,55%,38%)", color: "#fff" } : { background: "#eee", color: "#555" }}>✓ Оплачено</button>
+          <button onClick={() => setFilterPaid(filterPaid === "unpaid" ? "" : "unpaid")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "unpaid" ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>✗ Не оплачено</button>
+        </div>
+      </div>
+
+      {(search || filterPaid) && (
+        <button onClick={() => { setSearch(""); setFilterPaid(""); }}
+          className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
+          <Icon name="X" size={12} />Сбросить фильтры
+        </button>
+      )}
 
       {/* Статы */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
-          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(sessions as []).length}</div>
+          <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{filteredSessions.length}</div>
           <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Тренировок</div>
         </div>
         <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
@@ -56,7 +100,7 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
       </div>
 
       {/* Список тренировок */}
-      {(sessions as Record<string, unknown>[]).map(p => (
+      {filteredSessions.map(p => (
         <div key={p.id as number} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative">
           <div className="absolute right-0 top-0 bottom-0 pointer-events-none overflow-hidden" style={{ width: 70, zIndex: 0 }}>
             <img src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/d8f60ced-a474-4574-96b4-de28c3629a94.png"
@@ -91,10 +135,10 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
         </div>
       ))}
 
-      {(sessions as []).length === 0 && (
+      {filteredSessions.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <Icon name="User" size={40} className="mx-auto mb-2 opacity-20" />
-          <p>Нет персональных тренировок</p>
+          <p>{allSessions.length === 0 ? "Нет персональных тренировок" : "Ничего не найдено"}</p>
         </div>
       )}
 
@@ -210,12 +254,30 @@ export function NotesSection({ user }: { user: AppUser }) {
 // ─── REPORTS ──────────────────────────────────────────────────────────────────
 export function ReportsSection({ user, month }: { user: AppUser; month: string }) {
   const { data, isLoading, error } = useQuery({ queryKey: ["reports", month, user.id], queryFn: () => reportsApi.get(month) });
+  const [search, setSearch] = useState("");
+  const [filterGrp, setFilterGrp] = useState("");
+  const [filterHall, setFilterHall] = useState("");
+  const [filterPaid, setFilterPaid] = useState<"" | "paid" | "unpaid">("");
 
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
 
   const summary = data?.summary || {};
-  const students: Record<string, unknown>[] = data?.students || [];
+  const allStudents: Record<string, unknown>[] = data?.students || [];
+
+  const grps  = [...new Set(allStudents.map(s => s.grp  as string).filter(Boolean))];
+  const halls = [...new Set(allStudents.map(s => s.hall as string).filter(Boolean))];
+
+  const students = allStudents.filter(s => {
+    if (search && !(s.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterGrp  && s.grp  !== filterGrp)  return false;
+    if (filterHall && s.hall !== filterHall)  return false;
+    if (filterPaid === "paid"   && !s.paid)   return false;
+    if (filterPaid === "unpaid" &&  s.paid)   return false;
+    return true;
+  });
+
+  const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0) + (filterPaid ? 1 : 0);
 
   const exportCsv = () => {
     const headers = ["Ученик", "Зал", "Группа", "Был/Всего", "Перс.", "%", "Оплата"];
@@ -227,12 +289,74 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="section-title">ОТЧЁТЫ</h1>
+        <h1 className="section-title">ОТЧЁТЫ <span className="text-gray-400 font-golos font-normal text-sm">({students.length})</span></h1>
         <button onClick={exportCsv}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors">
           <Icon name="Download" size={13} />CSV
         </button>
       </div>
+
+      {/* Поиск */}
+      <div className="relative">
+        <Icon name="Search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm placeholder-gray-400 focus:outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 transition"
+          placeholder="Поиск по имени..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><Icon name="X" size={14} /></button>}
+      </div>
+
+      {/* Фильтр по залу */}
+      {halls.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Зал</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setFilterHall("")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterHall ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>Все</button>
+            {halls.map(h => (
+              <button key={h} onClick={() => setFilterHall(filterHall === h ? "" : h)} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterHall === h ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>{h}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Фильтр по группе */}
+      {grps.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Группа</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setFilterGrp("")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterGrp ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>Все</button>
+            {grps.map(g => (
+              <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                style={filterGrp === g ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>{g}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Фильтр по статусу */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Статус</div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setFilterPaid("")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "" ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>Все</button>
+          <button onClick={() => setFilterPaid(filterPaid === "paid" ? "" : "paid")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "paid" ? { background: "hsl(142,55%,38%)", color: "#fff" } : { background: "#eee", color: "#555" }}>✓ Оплатили</button>
+          <button onClick={() => setFilterPaid(filterPaid === "unpaid" ? "" : "unpaid")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterPaid === "unpaid" ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>✗ Должники</button>
+        </div>
+      </div>
+
+      {(activeFilters > 0 || search) && (
+        <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterPaid(""); setSearch(""); }}
+          className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
+          <Icon name="X" size={12} />Сбросить фильтры
+        </button>
+      )}
 
       {/* Статы */}
       <div className="grid grid-cols-3 gap-2">
@@ -290,7 +414,7 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
       {students.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <Icon name="BarChart2" size={40} className="mx-auto mb-2 opacity-20" />
-          <p>Нет данных за этот месяц</p>
+          <p>{allStudents.length === 0 ? "Нет данных за этот месяц" : "Ничего не найдено"}</p>
         </div>
       )}
     </div>
