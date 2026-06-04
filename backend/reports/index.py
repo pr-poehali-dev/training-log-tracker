@@ -53,11 +53,13 @@ def handler(event: dict, context) -> dict:
         trainer_filter = trainer_id_param if trainer_id_param else uid
         cur.execute(f"""
             SELECT
-                s.id, s.name, s.hall, s.hall2, s.grp, s.fee,
+                s.id, s.name, s.hall, s.hall2, s.grp, s.fee, s.schedule,
                 s.birthdate, s.insurance, s.insurance_to, s.cert_to, s.created_at,
+                s.has_sport, s.sport_schedule, s.team_level, s.phone,
                 COALESCE(p.paid, FALSE) as paid,
-                COUNT(DISTINCT CASE WHEN a.present THEN a.date END) as present_count,
-                COUNT(DISTINCT a.date) as total_days,
+                COUNT(DISTINCT CASE WHEN a.present AND (COALESCE(a.group_type,'main')='main') THEN a.date END) as present_count,
+                COUNT(DISTINCT CASE WHEN COALESCE(a.group_type,'main')='main' THEN a.date END) as total_days,
+                COUNT(DISTINCT CASE WHEN a.present AND a.group_type='sport' THEN a.date END) as present_sport,
                 COUNT(DISTINCT ps.id) as personal_count,
                 COALESCE((SELECT SUM(ps2.cost) FROM {S}.personal_sessions ps2
                           WHERE ps2.student_id=s.id AND ps2.paid AND to_char(ps2.date,'YYYY-MM')=%s), 0) as personal_revenue,
@@ -69,8 +71,9 @@ def handler(event: dict, context) -> dict:
             LEFT JOIN {S}.personal_sessions ps ON ps.student_id=s.id AND to_char(ps.date,'YYYY-MM')=%s
             JOIN {S}.users u ON u.id=s.trainer_id
             WHERE s.trainer_id=%s AND s.archived=FALSE
-            GROUP BY s.id, s.name, s.hall, s.hall2, s.grp, s.fee,
+            GROUP BY s.id, s.name, s.hall, s.hall2, s.grp, s.fee, s.schedule,
                      s.birthdate, s.insurance, s.insurance_to, s.cert_to, s.created_at,
+                     s.has_sport, s.sport_schedule, s.team_level, s.phone,
                      p.paid, u.full_name, u.trainings_per_month
             ORDER BY s.name
         """, (month, month, month, month, trainer_filter))

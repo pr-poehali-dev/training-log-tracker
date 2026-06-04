@@ -90,10 +90,47 @@ def handler(event: dict, context) -> dict:
         if not row or row[0] != "admin":
             cur.close(); conn.close()
             return err("Нет прав", 403)
-        cur.execute(
-            f"SELECT id, username, role, full_name, hall, schedule, can_edit_journal, created_at, trainings_per_month FROM {S}.users WHERE role='trainer' ORDER BY full_name"
-        )
-        trainers = [{"id": r[0], "username": r[1], "role": r[2], "full_name": r[3], "hall": r[4], "schedule": r[5], "can_edit_journal": r[6], "created_at": str(r[7]), "trainings_per_month": r[8]} for r in cur.fetchall()]
+        cur.execute(f"""
+            SELECT
+                u.id, u.username, u.role, u.full_name, u.hall, u.schedule,
+                u.can_edit_journal, u.created_at, u.trainings_per_month, u.birthdate,
+                COUNT(DISTINCT s.id) FILTER (WHERE s.archived = FALSE) AS student_count,
+                COUNT(DISTINCT s.id) FILTER (WHERE s.archived = TRUE)  AS archived_count,
+                COUNT(DISTINCT s.id) FILTER (
+                    WHERE s.archived = FALSE
+                    AND s.created_at >= NOW() - INTERVAL '30 days'
+                ) AS new_count
+            FROM {S}.users u
+            LEFT JOIN {S}.students s ON s.trainer_id = u.id
+            WHERE u.role = 'trainer'
+            GROUP BY u.id
+            ORDER BY u.full_name
+        """)
+        cols = [d[0] for d in cur.description]
+        trainers = []
+        for r in cur.fetchall():
+            t = dict(zip(cols, r))
+            t["created_at"] = str(t["created_at"])
+            t["student_count"]  = int(t["student_count"]  or 0)
+            t["archived_count"] = int(t["archived_count"] or 0)
+            t["new_count"]      = int(t["new_count"]      or 0)
+            trainers.append(t)
+
+        # paid_count за текущий месяц для каждого тренера
+        import datetime
+        cur_month = datetime.date.today().strftime("%Y-%m")
+        cur.execute(f"""
+            SELECT s.trainer_id, COUNT(DISTINCT p.student_id) as paid_count
+            FROM {S}.payments p
+            JOIN {S}.students s ON s.id = p.student_id
+            WHERE p.month = %s AND p.paid = TRUE AND s.archived = FALSE
+            GROUP BY s.trainer_id
+        """, (cur_month,))
+        paid_map = {r[0]: int(r[1]) for r in cur.fetchall()}
+        for t in trainers:
+            t["paid_count"] = paid_map.get(t["id"], 0)
+            t["cur_month"]  = cur_month
+
         cur.close(); conn.close()
         return ok(trainers)
 
@@ -116,15 +153,16 @@ def handler(event: dict, context) -> dict:
         if not full_name:
             cur.close(); conn.close()
             return err("ФИО обязательно")
+        birthdate = body.get("birthdate") or None
         if password:
             cur.execute(
-                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s, password=%s WHERE id=%s AND role='trainer'",
-                (full_name, hall or None, schedule or None, trainings_per_month, password, tid)
+                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s, password=%s, birthdate=%s WHERE id=%s AND role='trainer'",
+                (full_name, hall or None, schedule or None, trainings_per_month, password, birthdate, tid)
             )
         else:
             cur.execute(
-                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s WHERE id=%s AND role='trainer'",
-                (full_name, hall or None, schedule or None, trainings_per_month, tid)
+                f"UPDATE {S}.users SET full_name=%s, hall=%s, schedule=%s, trainings_per_month=%s, birthdate=%s WHERE id=%s AND role='trainer'",
+                (full_name, hall or None, schedule or None, trainings_per_month, birthdate, tid)
             )
         conn.commit()
         cur.close(); conn.close()

@@ -46,7 +46,7 @@ export const authApi = {
   togglePermission: (id: number) =>
     req(`${URLS.auth}?action=toggle_permission&id=${id}`, { method: "POST" }),
 
-  updateTrainer: (id: number, body: { full_name: string; hall?: string; schedule?: string; trainings_per_month?: number; password?: string }) =>
+  updateTrainer: (id: number, body: { full_name: string; hall?: string; schedule?: string; trainings_per_month?: number; password?: string; birthdate?: string }) =>
     req(`${URLS.auth}?action=update_trainer&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
 };
 
