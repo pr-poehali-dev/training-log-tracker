@@ -7,6 +7,7 @@ import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, 
 import { type FormState, StudentForm } from "./StudentFormComponent";
 import { ArchivedList } from "./ArchivedListComponent";
 import { StudentCard } from "./StudentCard";
+import ImportStudentsModal from "./ImportStudentsModal";
 
 const todayMMDD = () => new Date().toISOString().slice(5, 10); // MM-DD
 
@@ -27,6 +28,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const { data: payData = [] } = useQuery({ queryKey: ["pay-month", month, user.id], queryFn: () => paymentsApi.byMonth(month) });
 
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editStudent, setEditStudent] = useState<Record<string, unknown> | null>(null);
   const [archiveStudent, setArchiveStudent] = useState<Record<string, unknown> | null>(null);
   const [archiveReason, setArchiveReason] = useState("");
@@ -210,6 +212,10 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
             className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
             <Icon name="Archive" size={13} />Архив
           </button>
+          <button onClick={() => setShowImport(true)}
+            className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
+            <Icon name="Upload" size={13} />CSV
+          </button>
           <PrimaryBtn onClick={() => setShowAdd(true)}>
             <Icon name="Plus" size={15} className="inline mr-1" />Добавить
           </PrimaryBtn>
@@ -386,6 +392,14 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           </div>
         </div>
       </BottomSheet>
+
+      {/* Импорт учеников из CSV */}
+      {showImport && (
+        <ImportStudentsModal
+          onClose={() => setShowImport(false)}
+          onDone={() => setShowImport(false)}
+        />
+      )}
 
       {/* Добавить ученика */}
       <BottomSheet open={showAdd} onClose={() => setShowAdd(false)} title="Новый ученик">

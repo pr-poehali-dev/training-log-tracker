@@ -1,12 +1,13 @@
 import { offlineGet, offlineMutate } from "./offlineApi";
 
 const URLS = {
-  auth:          "https://functions.poehali.dev/d83b508f-5f51-4ba2-b5e0-df30b382e5e0",
-  journal:       "https://functions.poehali.dev/34ed4bb5-c29f-4428-a47f-7e00a87d4b8b",
-  reports:       "https://functions.poehali.dev/6c56dc4f-118e-4da5-83c3-bb24163222d5",
-  students:      "https://functions.poehali.dev/dc890787-2476-4a3d-964e-94efd4210b0f",
-  notifications: "https://functions.poehali.dev/8bafc972-b60d-47d5-af19-dd9811d522ae",
-  push:          "https://functions.poehali.dev/22d93ed7-ba75-44de-9235-cb0d4aa13729",
+  auth:           "https://functions.poehali.dev/d83b508f-5f51-4ba2-b5e0-df30b382e5e0",
+  journal:        "https://functions.poehali.dev/34ed4bb5-c29f-4428-a47f-7e00a87d4b8b",
+  reports:        "https://functions.poehali.dev/6c56dc4f-118e-4da5-83c3-bb24163222d5",
+  students:       "https://functions.poehali.dev/dc890787-2476-4a3d-964e-94efd4210b0f",
+  notifications:  "https://functions.poehali.dev/8bafc972-b60d-47d5-af19-dd9811d522ae",
+  push:           "https://functions.poehali.dev/22d93ed7-ba75-44de-9235-cb0d4aa13729",
+  importStudents: "https://functions.poehali.dev/64bea226-4779-4ac9-824c-b5904bff229a",
 };
 
 function getUser() {
@@ -71,6 +72,12 @@ export const studentsApi = {
     const url = `${URLS.students}?archived=1${trainerId ? `&trainer_id=${trainerId}` : ""}`;
     return offlineGet(url, `students_archived_${trainerId ?? "me"}`);
   },
+};
+
+// ── IMPORT STUDENTS ───────────────────────────────────────────
+export const importStudentsApi = {
+  upload: (csvBase64: string): Promise<{ added: number; skipped: number; skipped_details: { row: number; name?: string; reason: string }[] }> =>
+    req(URLS.importStudents, { method: "POST", body: JSON.stringify({ csv_base64: csvBase64 }) }),
 };
 
 // ── ATTENDANCE ────────────────────────────────────────────────
