@@ -25,23 +25,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-golos px-5 relative overflow-hidden"
-      style={{ background: "#f5f5f5" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center font-golos px-5 relative overflow-hidden">
 
-      {/* Background karate silhouette */}
-      <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
-        <div className="absolute right-[-60px] top-[15%] opacity-[0.07]"
-          style={{ fontSize: 320, lineHeight: 1, fontFamily: "serif", color: "#000", transform: "scaleX(-1)" }}>
-          🥋
-        </div>
-        <div className="absolute left-[-40px] bottom-[20%] opacity-[0.05]"
-          style={{ fontSize: 220, lineHeight: 1, fontFamily: "serif", color: "#000" }}>
-          🥋
-        </div>
-        {/* ink splatter top */}
-        <svg className="absolute top-0 left-0 right-0 w-full opacity-[0.04]" viewBox="0 0 400 120" fill="none">
-          <ellipse cx="200" cy="-20" rx="260" ry="100" fill="#000" />
-        </svg>
+      {/* Background image */}
+      <div className="absolute inset-0 pointer-events-none select-none">
+        <img
+          src="https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/6043a525-8595-4309-b819-06bb1d70a6e7.jpg"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0" style={{ background: "rgba(245,245,245,0.35)" }} />
       </div>
 
       {/* Logo */}
