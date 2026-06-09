@@ -25,7 +25,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-golos px-5 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-end font-golos px-5 pb-16 relative overflow-hidden">
 
       {/* Фон */}
       <div className="absolute inset-0 pointer-events-none select-none">
@@ -107,12 +107,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Bottom pill */}
-      <div className="mt-6 relative z-10 flex items-center gap-1.5 px-5 py-2 rounded-full font-oswald text-[10px] uppercase tracking-widest text-white"
-        style={{ background: "rgba(0,0,0,0.75)" }}>
-        <Icon name="MapPin" size={11} />
-        Ростовская обл. • Киокушинкай карате-до
-      </div>
+
     </div>
   );
 }
