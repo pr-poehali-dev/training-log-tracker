@@ -28,25 +28,35 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 function PushPromoModal({ onDone }: { onDone: () => void }) {
   const [loading, setLoading] = useState(false);
-  const [denied, setDenied] = useState(false);
+  const [state, setState] = useState<"idle" | "denied" | "error" | "success">("idle");
 
   const enable = async () => {
     setLoading(true);
     try {
       const { vapid_public } = await pushApi.getVapidKey();
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { setDenied(true); setLoading(false); return; }
+      if (perm === "denied") {
+        setState("denied");
+        setLoading(false);
+        return;
+      }
+      if (perm !== "granted") {
+        setState("error");
+        setLoading(false);
+        return;
+      }
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapid_public),
       });
       await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON);
-    } catch (e) {
-      console.error(e);
+      setState("success");
+      setTimeout(onDone, 1500);
+    } catch {
+      setState("error");
     } finally {
       setLoading(false);
-      onDone();
     }
   };
 
@@ -54,40 +64,54 @@ function PushPromoModal({ onDone }: { onDone: () => void }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8"
       style={{ background: "rgba(0,0,0,0.45)" }}>
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* шапка */}
         <div className="px-5 pt-6 pb-4 text-center">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: "hsl(0,72%,95%)" }}>
-            <Icon name="BellRing" size={28} style={{ color: "hsl(0,72%,40%)" }} />
+            style={{ background: state === "success" ? "hsl(142,60%,93%)" : "hsl(0,72%,95%)" }}>
+            <Icon
+              name={state === "success" ? "BellRing" : "BellRing"}
+              size={28}
+              style={{ color: state === "success" ? "hsl(142,60%,35%)" : "hsl(0,72%,40%)" }}
+            />
           </div>
           <h2 className="font-oswald font-bold text-lg tracking-wide text-gray-800 mb-1">
-            Включите уведомления
+            {state === "success" ? "Уведомления включены!" : "Включите уведомления"}
           </h2>
           <p className="text-sm text-gray-500 leading-relaxed">
-            В <b>21:30</b> вам придёт напоминание, если журнал посещаемости ещё не заполнен — прямо поверх всех приложений.
+            {state === "success"
+              ? "Отлично! В 21:30 вы получите напоминание, если журнал не заполнен."
+              : <>В <b>21:30</b> вам придёт напоминание, если журнал посещаемости ещё не заполнен — прямо поверх всех приложений.</>
+            }
           </p>
         </div>
 
-        {denied && (
-          <div className="mx-5 mb-3 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 text-center">
-            Уведомления заблокированы. Разрешите их в настройках браузера.
+        {state === "denied" && (
+          <div className="mx-5 mb-3 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-700 text-center leading-relaxed">
+            Уведомления заблокированы в браузере.<br />
+            Зайдите в настройки браузера → Уведомления и разрешите этот сайт.
+          </div>
+        )}
+        {state === "error" && (
+          <div className="mx-5 mb-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 text-center">
+            Не удалось подключить уведомления. Попробуйте позже.
           </div>
         )}
 
-        <div className="flex flex-col gap-2 px-5 pb-5">
-          <button
-            onClick={enable}
-            disabled={loading}
-            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.98] disabled:opacity-60"
-            style={{ background: "hsl(0,72%,40%)" }}>
-            {loading ? "Подключение..." : "🔔 Включить уведомления"}
-          </button>
-          <button
-            onClick={onDone}
-            className="w-full py-2.5 rounded-xl text-sm text-gray-400 hover:text-gray-600 transition-colors">
-            Не сейчас
-          </button>
-        </div>
+        {state !== "success" && (
+          <div className="flex flex-col gap-2 px-5 pb-5">
+            <button
+              onClick={enable}
+              disabled={loading || state === "denied"}
+              className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "hsl(0,72%,40%)" }}>
+              {loading ? "Подключение..." : "🔔 Включить уведомления"}
+            </button>
+            <button
+              onClick={onDone}
+              className="w-full py-2.5 rounded-xl text-sm text-gray-400 hover:text-gray-600 transition-colors">
+              {state === "denied" ? "Закрыть" : "Не сейчас"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

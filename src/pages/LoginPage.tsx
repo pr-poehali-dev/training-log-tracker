@@ -57,7 +57,7 @@ export default function LoginPage() {
               <input
                 value={username}
                 onChange={e => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="Введите логин"
                 autoComplete="username"
                 required
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition"
