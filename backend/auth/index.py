@@ -205,6 +205,24 @@ def handler(event: dict, context) -> dict:
         if not cur.fetchone():
             cur.close(); conn.close()
             return err("Тренер не найден", 404)
+        # Удаляем каскадно все связанные данные тренера
+        cur.execute(f"""
+            DELETE FROM {S}.attendance
+            WHERE student_id IN (SELECT id FROM {S}.students WHERE trainer_id=%s)
+               OR trainer_id=%s
+        """, (tid, tid))
+        cur.execute(f"""
+            DELETE FROM {S}.payments
+            WHERE student_id IN (SELECT id FROM {S}.students WHERE trainer_id=%s)
+               OR trainer_id=%s
+        """, (tid, tid))
+        cur.execute(f"""
+            DELETE FROM {S}.personal_sessions
+            WHERE student_id IN (SELECT id FROM {S}.students WHERE trainer_id=%s)
+               OR trainer_id=%s
+        """, (tid, tid))
+        cur.execute(f"DELETE FROM {S}.notes WHERE trainer_id=%s", (tid,))
+        cur.execute(f"DELETE FROM {S}.students WHERE trainer_id=%s", (tid,))
         cur.execute(f"DELETE FROM {S}.users WHERE id=%s", (tid,))
         conn.commit()
         cur.close(); conn.close()
