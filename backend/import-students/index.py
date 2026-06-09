@@ -87,14 +87,14 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return err("Администратор не может импортировать учеников напрямую. Войдите как тренер.")
 
-    # Парсим CSV
-    reader = csv.DictReader(io.StringIO(csv_text))
+    # Автоопределяем разделитель (Excel RU сохраняет через ";", остальные через ",")
+    first_line = csv_text.split("\n")[0]
+    delimiter = ";" if first_line.count(";") > first_line.count(",") else ","
+
+    reader = csv.DictReader(io.StringIO(csv_text), delimiter=delimiter)
     if not reader.fieldnames:
         cur.close(); conn.close()
         return err("Файл пустой или неверный формат")
-
-    # Нормализуем заголовки
-    norm_fields = {f.strip().lower(): f for f in reader.fieldnames}
 
     added = []
     skipped = []
