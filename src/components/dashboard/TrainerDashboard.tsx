@@ -6,7 +6,7 @@ import { StudentsSection, PaymentsSection, AttendanceSection } from "./TrainerSe
 import { PersonalSection, NotesSection, ReportsSection, ExpensesSection } from "./TrainerSections2";
 import AppShell, { type Tab } from "@/components/layout/AppShell";
 import Icon from "@/components/ui/icon";
-import { attendanceApi } from "@/lib/api";
+import { attendanceApi, pushApi } from "@/lib/api";
 
 function formatDateRu(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -17,6 +17,80 @@ function formatMonthRu(monthStr: string) {
   const [y, m] = monthStr.split("-");
   const d = new Date(Number(y), Number(m) - 1, 1);
   return d.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function PushPromoModal({ onDone }: { onDone: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [denied, setDenied] = useState(false);
+
+  const enable = async () => {
+    setLoading(true);
+    try {
+      const { vapid_public } = await pushApi.getVapidKey();
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { setDenied(true); setLoading(false); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid_public),
+      });
+      await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      onDone();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-8"
+      style={{ background: "rgba(0,0,0,0.45)" }}>
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* шапка */}
+        <div className="px-5 pt-6 pb-4 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: "hsl(0,72%,95%)" }}>
+            <Icon name="BellRing" size={28} style={{ color: "hsl(0,72%,40%)" }} />
+          </div>
+          <h2 className="font-oswald font-bold text-lg tracking-wide text-gray-800 mb-1">
+            Включите уведомления
+          </h2>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            В <b>21:30</b> вам придёт напоминание, если журнал посещаемости ещё не заполнен — прямо поверх всех приложений.
+          </p>
+        </div>
+
+        {denied && (
+          <div className="mx-5 mb-3 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 text-center">
+            Уведомления заблокированы. Разрешите их в настройках браузера.
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 px-5 pb-5">
+          <button
+            onClick={enable}
+            disabled={loading}
+            className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all active:scale-[0.98] disabled:opacity-60"
+            style={{ background: "hsl(0,72%,40%)" }}>
+            {loading ? "Подключение..." : "🔔 Включить уведомления"}
+          </button>
+          <button
+            onClick={onDone}
+            className="w-full py-2.5 rounded-xl text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            Не сейчас
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function useJournalReminder(user: AppUser) {
@@ -54,11 +128,41 @@ function useJournalReminder(user: AppUser) {
   return { show, dismiss: () => setDismissed(true) };
 }
 
+function usePushPromo() {
+  const STORAGE_KEY = "push_promo_shown";
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (Notification.permission === "denied") return;
+    if (localStorage.getItem(STORAGE_KEY)) return;
+
+    // Показываем через 3 секунды после входа — даём приложению загрузиться
+    const timer = setTimeout(() => {
+      navigator.serviceWorker.ready.then(reg =>
+        reg.pushManager.getSubscription().then(sub => {
+          if (!sub) setShow(true);
+        })
+      );
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem(STORAGE_KEY, "1");
+    setShow(false);
+  };
+
+  return { show, dismiss };
+}
+
 export default function TrainerDashboard({ user }: { user: AppUser }) {
   const [tab, setTab] = useState<Tab>("students");
   const [date, setDate] = useState(todayStr());
   const [month, setMonth] = useState(monStr());
   const { show: showReminder, dismiss: dismissReminder } = useJournalReminder(user);
+  const { show: showPushPromo, dismiss: dismissPushPromo } = usePushPromo();
 
   const toolbar = (
     <>
@@ -93,6 +197,9 @@ export default function TrainerDashboard({ user }: { user: AppUser }) {
 
   return (
     <AppShell tab={tab} onTabChange={setTab} toolbar={toolbar}>
+      {/* Промо-модалка включения пуш при первом входе */}
+      {showPushPromo && <PushPromoModal onDone={dismissPushPromo} />}
+
       {/* Баннер-напоминание о незаполненном журнале после 21:30 */}
       {showReminder && (
         <div className="fixed bottom-20 left-4 right-4 z-50 rounded-2xl shadow-xl overflow-hidden"
