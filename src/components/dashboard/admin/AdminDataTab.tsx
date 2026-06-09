@@ -289,7 +289,7 @@ export default function AdminDataTab() {
                           ? (insOk ? <span className="badge-present text-[9px]">✓ Страховка</span> : <span className="badge-absent text-[9px]">Страховка просрочена</span>)
                           : null}
                         {s.has_sport && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>🏆 Спорт</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(200,55%,93%)", color: "hsl(200,60%,32%)" }}>🏆 Спорт</span>
                         )}
                       </div>
                     </div>

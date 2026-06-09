@@ -131,7 +131,7 @@ export function StudentCard({
           <div className="flex flex-wrap gap-1 mt-1.5">
             {s.has_sport ? (
               <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>
+                style={{ background: "hsl(200,55%,93%)", color: "hsl(200,60%,32%)" }}>
                 🏆 Спортивная
               </span>
             ) : (
@@ -184,45 +184,32 @@ export function StudentCard({
           <span>{togglingPay ? "..." : "Оплата"}</span>
         </button>
 
-        {/* Отметить посещение — основная группа */}
+        {/* Отметить / снять посещение — основная группа */}
         {canEdit && (
-          attended ? (
-            <div className="flex-[1.8] flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold"
-              style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>
-              <Icon name="Check" size={14} />
-              <span>Посещение</span>
-            </div>
-          ) : (
-            <button
-              disabled={togglingMain}
-              onClick={onMarkMain}
-              className="flex-[1.8] flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-white active:opacity-80 disabled:opacity-60 transition-all"
-              style={{ background: "hsl(0,72%,40%)" }}>
-              <Icon name="Check" size={14} />
-              <span>{togglingMain ? "..." : "Отметить посещение"}</span>
-            </button>
-          )
+          <button
+            disabled={togglingMain}
+            onClick={onMarkMain}
+            className="flex-[1.8] flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold active:opacity-80 disabled:opacity-60 transition-all"
+            style={attended
+              ? { background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }
+              : { background: "hsl(0,72%,40%)", color: "#fff" }}>
+            <Icon name="Check" size={14} />
+            <span>{togglingMain ? "..." : attended ? "Был (снять)" : "Отметить посещение"}</span>
+          </button>
         )}
 
-        {/* Спортивная группа — отдельная независимая кнопка */}
+        {/* Спортивная группа — отдельная кнопка toggle */}
         {s.has_sport && canEdit && (
-          isPresentSport ? (
-            <div
-              className="px-3 py-2 text-[11px] font-bold border-l border-gray-100 flex items-center gap-1"
-              style={{ color: "hsl(200,70%,35%)", background: "hsl(200,55%,93%)" }}>
-              <Icon name="Trophy" size={13} />
-              <span>Спорт ✓</span>
-            </div>
-          ) : (
-            <button
-              disabled={togglingSport}
-              onClick={onMarkSport}
-              className="px-3 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1 active:opacity-70 disabled:opacity-50"
-              style={{ color: "hsl(200,70%,45%)" }}>
-              <Icon name="Trophy" size={13} />
-              <span>{togglingSport ? "..." : "Спорт"}</span>
-            </button>
-          )
+          <button
+            disabled={togglingSport}
+            onClick={onMarkSport}
+            className="px-3 py-2 text-[11px] font-bold transition-all border-l border-gray-100 flex items-center gap-1 active:opacity-70 disabled:opacity-50"
+            style={isPresentSport
+              ? { color: "hsl(200,70%,35%)", background: "hsl(200,55%,93%)" }
+              : { color: "hsl(200,70%,45%)" }}>
+            <Icon name="Trophy" size={13} />
+            <span>{togglingSport ? "..." : isPresentSport ? "Спорт ✓" : "Спорт"}</span>
+          </button>
         )}
       </div>
     </div>

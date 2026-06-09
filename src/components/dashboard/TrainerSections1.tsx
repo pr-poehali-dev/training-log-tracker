@@ -48,6 +48,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [filterGrp, setFilterGrp] = useState("");
   const [filterHall, setFilterHall] = useState("");
   const [filterSport, setFilterSport] = useState<"" | "sport" | "main">("");
+  const [filterBirthday, setFilterBirthday] = useState(false);
 
   const today = todayStr();
   const todayMD = todayMMDD();
@@ -79,6 +80,8 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const hasSportStudents = (students as Record<string, unknown>[]).some(s => s.has_sport);
 
+  const hasBirthdayStudents = (students as Record<string, unknown>[]).some(s => isBirthday(s));
+
   const filtered = (students as Record<string, unknown>[]).filter(s => {
     const q = search.toLowerCase();
     if (q && !(s.name as string)?.toLowerCase().includes(q)) return false;
@@ -86,20 +89,27 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     if (filterHall && s.hall !== filterHall && s.hall2 !== filterHall) return false;
     if (filterSport === "sport" && !s.has_sport) return false;
     if (filterSport === "main" && s.has_sport) return false;
+    if (filterBirthday && !isBirthday(s)) return false;
     return true;
   });
 
   const markAtt = async (sid: number, groupType: "main" | "sport") => {
     const key = `${sid}_${groupType}`;
+    const currentlyPresent = isPresent(sid, groupType);
+    const newPresent = !currentlyPresent;
     setTogglingGt(prev => new Set([...prev, key]));
     try {
-      const res = await attendanceApi.mark({ student_id: sid, date, present: true, group_type: groupType });
+      const res = await attendanceApi.mark({ student_id: sid, date, present: newPresent, group_type: groupType });
       if (res?.offline) {
-        showToast("✓ Посещение сохранено (офлайн)");
+        showToast(newPresent ? "✓ Посещение сохранено (офлайн)" : "✓ Посещение снято (офлайн)");
         qc.setQueryData(["att-date", date, user.id], (old: Record<string, unknown>[] | undefined) => {
           const arr = old || [];
-          if (arr.some(a => a.student_id === sid && a.group_type === groupType && a.present)) return arr;
-          return [...arr, { student_id: sid, date, present: true, group_type: groupType }];
+          if (newPresent) {
+            if (arr.some(a => a.student_id === sid && a.group_type === groupType && a.present)) return arr;
+            return [...arr, { student_id: sid, date, present: true, group_type: groupType }];
+          } else {
+            return arr.map(a => (a.student_id === sid && (a.group_type ?? "main") === groupType) ? { ...a, present: false } : a);
+          }
         });
       } else {
         qc.invalidateQueries({ queryKey: ["att-date"] });
@@ -182,7 +192,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
 
-  const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0) + (filterSport ? 1 : 0);
+  const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0) + (filterSport ? 1 : 0) + (filterBirthday ? 1 : 0);
 
   return (
     <div className="flex flex-col gap-3">
@@ -288,8 +298,27 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       )}
 
+      {/* Фильтр по дням рождения — только если есть именинники сегодня */}
+      {hasBirthdayStudents && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">День рождения</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setFilterBirthday(false)}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!filterBirthday
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>Все</button>
+            <button onClick={() => setFilterBirthday(!filterBirthday)}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={filterBirthday
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>🎉 Именинники</button>
+          </div>
+        </div>
+      )}
+
       {activeFilters > 0 && (
-        <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterSport(""); }}
+        <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterSport(""); setFilterBirthday(false); }}
           className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
           <Icon name="X" size={12} />Сбросить фильтры ({activeFilters})
         </button>
