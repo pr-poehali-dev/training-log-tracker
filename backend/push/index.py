@@ -58,12 +58,12 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and action == "vapid_public":
         return ok({"vapid_public": VAPID_PUBLIC})
 
-    # Cron-рассылка — вызывается по расписанию без авторизации пользователя
-    if method == "POST" and action == "cron_remind":
+    # Cron 21:30 МСК — напоминание тренерам о незаполненном журнале
+    if method == "POST" and action in ("cron_remind", "cron_remind_trainers"):
         secret = qs.get("secret") or body.get("secret", "")
         if secret != os.environ.get("CRON_SECRET", ""):
             return err("Forbidden", 403)
-        return _cron_remind()
+        return _cron_remind_trainers()
 
     # Далее нужна авторизация
     if not user_id:
@@ -123,10 +123,10 @@ def handler(event: dict, context) -> dict:
     return err("Неверный action", 400)
 
 
-def _cron_remind():
+def _cron_remind_trainers():
     """
-    Cron-задача: в 22:00 проверяем тренеров, у которых нет ни одной
-    отметки посещения за сегодня, и отправляем им push-напоминание.
+    Cron 21:30 МСК (18:30 UTC): отправляем push тренерам, которые ещё не
+    заполнили журнал посещаемости за сегодня.
     """
     now_msk = datetime.now(timezone(timedelta(hours=3)))
     today = now_msk.strftime("%Y-%m-%d")
@@ -134,48 +134,44 @@ def _cron_remind():
     conn = get_conn()
     cur = conn.cursor()
 
-    # Тренеры у которых есть ученики, но НЕТ ни одной отметки за сегодня
+    # Тренеры с активными учениками, но без отметок за сегодня
     cur.execute(f"""
         SELECT DISTINCT u.id, u.full_name
         FROM {S}.users u
         JOIN {S}.students s ON s.trainer_id = u.id AND s.archived = FALSE
         WHERE u.role = 'trainer'
           AND u.id NOT IN (
-              SELECT DISTINCT trainer_id FROM {S}.attendance
-              WHERE date = %s
+              SELECT DISTINCT trainer_id FROM {S}.attendance WHERE date = %s
           )
     """, (today,))
-    trainers_no_journal = cur.fetchall()
+    trainers = cur.fetchall()
 
     sent_total = 0
-    failed_ids = []
+    dead_endpoints = []
 
-    for (trainer_id, trainer_name) in trainers_no_journal:
+    for (trainer_id, trainer_name) in trainers:
         cur.execute(f"""
-            SELECT endpoint, p256dh, auth FROM {S}.push_subscriptions
-            WHERE user_id = %s
+            SELECT endpoint, p256dh, auth FROM {S}.push_subscriptions WHERE user_id = %s
         """, (trainer_id,))
         subs = cur.fetchall()
-        if not subs:
-            continue
         for (endpoint, p256dh, auth_key) in subs:
             sub_info = {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth_key}}
-            ok_sent = send_push(
+            first_name = trainer_name.split()[0] if trainer_name else "Тренер"
+            if send_push(
                 sub_info,
-                "🥋 ИКО: журнал не заполнен",
-                f"Добрый вечер, {trainer_name.split()[0]}! Не забудьте отметить посещаемость за сегодня.",
+                "🥋 Журнал не заполнен",
+                f"{first_name}, не забудьте отметить посещаемость сегодня!",
                 "/"
-            )
-            if ok_sent:
+            ):
                 sent_total += 1
             else:
-                failed_ids.append(trainer_id)
+                dead_endpoints.append(endpoint)
 
-    # Удаляем невалидные подписки (endpoint больше не существует)
-    if failed_ids:
-        for fid in set(failed_ids):
-            cur.execute(f"DELETE FROM {S}.push_subscriptions WHERE user_id=%s", (fid,))
+    # Удаляем только мёртвые endpoint-ы, не трогая другие подписки пользователя
+    for ep in dead_endpoints:
+        cur.execute(f"DELETE FROM {S}.push_subscriptions WHERE endpoint = %s", (ep,))
 
     conn.commit()
-    cur.close(); conn.close()
-    return ok({"date": today, "reminded": len(trainers_no_journal), "sent": sent_total})
+    cur.close()
+    conn.close()
+    return ok({"date": today, "reminded": len(trainers), "sent": sent_total})
