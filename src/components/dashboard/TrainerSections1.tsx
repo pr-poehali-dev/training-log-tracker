@@ -298,24 +298,24 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       )}
 
-      {/* Фильтр по дням рождения — только если есть именинники сегодня */}
-      {hasBirthdayStudents && (
-        <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">День рождения</div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setFilterBirthday(false)}
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-              style={!filterBirthday
-                ? { background: "hsl(0,72%,40%)", color: "#fff" }
-                : { background: "#eee", color: "#555" }}>Все</button>
-            <button onClick={() => setFilterBirthday(!filterBirthday)}
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-              style={filterBirthday
-                ? { background: "hsl(0,72%,40%)", color: "#fff" }
-                : { background: "#eee", color: "#555" }}>🎉 Именинники</button>
-          </div>
+      {/* Фильтр по дням рождения */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+          День рождения {hasBirthdayStudents && <span className="text-red-400">🎉</span>}
         </div>
-      )}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setFilterBirthday(false)}
+            className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={!filterBirthday
+              ? { background: "hsl(0,72%,40%)", color: "#fff" }
+              : { background: "#eee", color: "#555" }}>Все</button>
+          <button onClick={() => setFilterBirthday(!filterBirthday)}
+            className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterBirthday
+              ? { background: "hsl(0,72%,40%)", color: "#fff" }
+              : { background: "#eee", color: "#555" }}>🎂 Сегодня</button>
+        </div>
+      </div>
 
       {activeFilters > 0 && (
         <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterSport(""); setFilterBirthday(false); }}
