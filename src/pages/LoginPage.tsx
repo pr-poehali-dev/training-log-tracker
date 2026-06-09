@@ -25,7 +25,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-end font-golos px-5 pb-16 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-end font-golos px-5 pb-36 relative overflow-hidden">
 
       {/* Фон */}
       <div className="absolute inset-0 pointer-events-none select-none">
