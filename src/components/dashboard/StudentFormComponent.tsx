@@ -47,7 +47,10 @@ export function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitL
         <input className={inputCls} placeholder="Телефон" value={form.phone} onChange={f("phone")} />
         <input className={inputCls} placeholder="IKO карта" value={form.iko} onChange={f("iko")} />
         <input className={inputCls} placeholder="Уровень / пояс" value={form.lvl} onChange={f("lvl")} />
-        <input className={inputCls} placeholder="Дата рождения" type="date" value={form.birthdate} onChange={f("birthdate")} />
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Дата рождения</label>
+          <input className={inputCls} type="date" value={form.birthdate} onChange={f("birthdate")} />
+        </div>
       </div>
 
       <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Оплата</div>
