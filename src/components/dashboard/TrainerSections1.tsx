@@ -40,6 +40,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [toggling, setToggling] = useState<Set<number>>(new Set());
   const [togglingGt, setTogglingGt] = useState<Set<string>>(new Set());
   const [offlineToast, setOfflineToast] = useState("");
+  const [renameGrpModal, setRenameGrpModal] = useState<string | null>(null);
+  const [renameGrpNew, setRenameGrpNew] = useState("");
+  const [renamingSaving, setRenamingSaving] = useState(false);
 
   const showToast = (msg: string) => {
     setOfflineToast(msg);
@@ -191,6 +194,23 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     } finally { setArchiving(false); }
   };
 
+  const openRenameGrp = (grp: string) => {
+    setRenameGrpModal(grp);
+    setRenameGrpNew(grp);
+  };
+
+  const confirmRenameGrp = async () => {
+    if (!renameGrpModal || !renameGrpNew.trim()) return;
+    setRenamingSaving(true);
+    try {
+      await studentsApi.renameGroup(renameGrpModal, renameGrpNew.trim());
+      qc.invalidateQueries({ queryKey: ["students"] });
+      setFilterGrp(renameGrpNew.trim());
+      setRenameGrpModal(null);
+      showToast("Группа переименована");
+    } finally { setRenamingSaving(false); }
+  };
+
   if (isLoading) return <Loading />;
   if (error) return <ErrBlock msg="Ошибка загрузки" />;
 
@@ -208,10 +228,12 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           УЧЕНИКИ <span className="text-gray-400 font-golos font-normal text-sm">({filtered.length})</span>
         </h1>
         <div className="flex gap-2">
-          <button onClick={() => setShowArchive(!showArchive)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
-            <Icon name="Archive" size={13} />Архив
-          </button>
+          {user.role === "admin" && (
+            <button onClick={() => setShowArchive(!showArchive)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
+              <Icon name="Archive" size={13} />Архив
+            </button>
+          )}
           <button onClick={() => setShowImport(true)}
             className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
             <Icon name="Upload" size={13} />CSV
@@ -270,11 +292,18 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
                 ? { background: "hsl(0,72%,40%)", color: "#fff" }
                 : { background: "#eee", color: "#555" }}>Все</button>
             {grps.map(g => (
-              <button key={g} onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
-                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
-                style={filterGrp === g
-                  ? { background: "hsl(0,72%,40%)", color: "#fff" }
-                  : { background: "#eee", color: "#555" }}>{g}</button>
+              <div key={g} className="flex items-center gap-0.5">
+                <button onClick={() => setFilterGrp(filterGrp === g ? "" : g)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+                  style={filterGrp === g
+                    ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                    : { background: "#eee", color: "#555" }}>{g}</button>
+                <button onClick={() => openRenameGrp(g)}
+                  className="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                  title="Переименовать группу">
+                  <Icon name="Pencil" size={11} />
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -415,6 +444,28 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         <datalist id="dl-grps-e">{grps.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-schedules-e">{schedules.map(v => <option key={v} value={v} />)}</datalist>
         <StudentForm form={editForm} setForm={setEditForm} onSubmit={saveEdit} onCancel={() => setEditStudent(null)} saving={saving} submitLabel="Сохранить изменения" listSuffix="-e" />
+      </BottomSheet>
+
+      {/* Переименовать группу */}
+      <BottomSheet open={!!renameGrpModal} onClose={() => setRenameGrpModal(null)} title="Переименовать группу">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gray-500">
+            Новое название заменит <span className="font-semibold text-gray-700">«{renameGrpModal}»</span> у всех учеников этой группы сразу.
+          </p>
+          <input
+            className={inputCls}
+            placeholder="Новое название группы"
+            value={renameGrpNew}
+            onChange={e => setRenameGrpNew(e.target.value)}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <OutlineBtn onClick={() => setRenameGrpModal(null)}>Отмена</OutlineBtn>
+            <PrimaryBtn onClick={confirmRenameGrp} disabled={renamingSaving || !renameGrpNew.trim() || renameGrpNew.trim() === renameGrpModal}>
+              {renamingSaving ? "..." : "Переименовать"}
+            </PrimaryBtn>
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );

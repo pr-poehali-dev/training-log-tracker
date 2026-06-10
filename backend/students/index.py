@@ -200,5 +200,23 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return ok({"message": "Ученик перемещён в архив"})
 
+    # PATCH — массовое переименование группы (?action=rename_group)
+    if method == "PATCH":
+        action = qs.get("action")
+        if action == "rename_group":
+            old_grp = (body.get("old_grp") or "").strip()
+            new_grp = (body.get("new_grp") or "").strip()
+            if not old_grp or not new_grp:
+                cur.close(); conn.close()
+                return err("Укажите старое и новое название группы")
+            cur.execute(f"""
+                UPDATE {S}.students SET grp=%s
+                WHERE trainer_id=%s AND grp=%s AND archived=FALSE
+            """, (new_grp, uid, old_grp))
+            count = cur.rowcount
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"updated": count, "message": f"Переименовано {count} учеников"})
+
     cur.close(); conn.close()
     return err("Method not allowed", 405)

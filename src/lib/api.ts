@@ -72,6 +72,9 @@ export const studentsApi = {
     const url = `${URLS.students}?archived=1${trainerId ? `&trainer_id=${trainerId}` : ""}`;
     return offlineGet(url, `students_archived_${trainerId ?? "me"}`);
   },
+
+  renameGroup: (oldGrp: string, newGrp: string) =>
+    req(`${URLS.students}?action=rename_group`, { method: "PATCH", body: JSON.stringify({ old_grp: oldGrp, new_grp: newGrp }) }),
 };
 
 // ── IMPORT STUDENTS ───────────────────────────────────────────
