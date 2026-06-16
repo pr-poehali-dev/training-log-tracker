@@ -189,7 +189,8 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Укажите month")
             cur.execute(f"""
-                SELECT ps.id, ps.student_id, s.name, ps.date, ps.duration, ps.cost, ps.paid, ps.note, ps.trainer_id
+                SELECT ps.id, ps.student_id, s.name, ps.date, ps.duration, ps.cost, ps.paid, ps.note, ps.trainer_id,
+                       COALESCE(ps.session_type, 'personal') as session_type
                 FROM {S}.personal_sessions ps JOIN {S}.students s ON s.id=ps.student_id
                 WHERE to_char(ps.date,'YYYY-MM')=%s AND ps.trainer_id=%s
                 ORDER BY ps.date DESC
@@ -210,10 +211,11 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет прав", 403)
             cur.execute(f"""
-                INSERT INTO {S}.personal_sessions (student_id, trainer_id, date, duration, cost, paid, note)
-                VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+                INSERT INTO {S}.personal_sessions (student_id, trainer_id, date, duration, cost, paid, note, session_type)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
             """, (student_id, uid, body.get("date"), int(body.get("duration", 60)),
-                  int(body.get("cost", 1500)), bool(body.get("paid", False)), body.get("note") or None))
+                  int(body.get("cost", 1500)), bool(body.get("paid", False)), body.get("note") or None,
+                  body.get("session_type") or "personal"))
             new_id = cur.fetchone()[0]
             conn.commit()
             cur.close(); conn.close()
@@ -230,9 +232,10 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет прав", 403)
             cur.execute(f"""
-                UPDATE {S}.personal_sessions SET date=%s, duration=%s, cost=%s, paid=%s, note=%s WHERE id=%s
+                UPDATE {S}.personal_sessions SET date=%s, duration=%s, cost=%s, paid=%s, note=%s, session_type=%s WHERE id=%s
             """, (body.get("date"), int(body.get("duration", 60)), int(body.get("cost", 1500)),
-                  bool(body.get("paid", False)), body.get("note") or None, sid))
+                  bool(body.get("paid", False)), body.get("note") or None,
+                  body.get("session_type") or "personal", sid))
             conn.commit()
             cur.close(); conn.close()
             return ok({"message": "Обновлено"})

@@ -7,17 +7,27 @@ import type { AppUser } from "@/pages/Index";
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
 import PushToggle from "@/components/shared/PushToggle";
 
-// ─── PERSONAL ─────────────────────────────────────────────────────────────────
+// Типы доп. тренировок
+const SESSION_TYPES = [
+  { value: "kata",     label: "Ката класс" },
+  { value: "group",    label: "Групповая тренировка" },
+  { value: "strength", label: "Силовая тренировка" },
+  { value: "personal", label: "Персональная тренировка" },
+];
+const sessionTypeLabel = (v: string) => SESSION_TYPES.find(t => t.value === v)?.label || "Персональная тренировка";
+
+// ─── ДОП. ТРЕНИРОВКИ ──────────────────────────────────────────────────────────
 export function PersonalSection({ user, month }: { user: AppUser; month: string }) {
   const qc = useQueryClient();
   const { data: students = [] } = useQuery({ queryKey: ["students", user.id], queryFn: () => studentsApi.list() });
   const { data: sessions = [], isLoading } = useQuery({ queryKey: ["personal", month, user.id], queryFn: () => personalApi.byMonth(month) });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({ student_id: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "" });
+  const [form, setForm] = useState({ student_id: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [filterPaid, setFilterPaid] = useState<"" | "paid" | "unpaid">("");
+  const [filterType, setFilterType] = useState("");
 
   const allSessions = sessions as Record<string, unknown>[];
   const allStudentsData = students as Record<string, unknown>[];
@@ -26,13 +36,14 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
     if (search && !(p.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterPaid === "paid"   && !p.paid) return false;
     if (filterPaid === "unpaid" &&  p.paid) return false;
+    if (filterType && (p.session_type || "personal") !== filterType) return false;
     return true;
   });
 
   const totalRev = filteredSessions.filter(p => p.paid).reduce((s, p) => s + (p.cost as number), 0);
 
-  const openAdd = () => { setEditId(null); setForm({ student_id: allStudentsData[0]?.id?.toString() || "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "" }); setShowForm(true); };
-  const openEdit = (p: Record<string, unknown>) => { setEditId(p.id as number); setForm({ student_id: String(p.student_id), date: p.date as string, duration: p.duration as number, cost: p.cost as number, paid: p.paid as boolean, note: p.note as string || "" }); setShowForm(true); };
+  const openAdd = () => { setEditId(null); setForm({ student_id: allStudentsData[0]?.id?.toString() || "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" }); setShowForm(true); };
+  const openEdit = (p: Record<string, unknown>) => { setEditId(p.id as number); setForm({ student_id: String(p.student_id), date: p.date as string, duration: p.duration as number, cost: p.cost as number, paid: p.paid as boolean, note: p.note as string || "", session_type: (p.session_type as string) || "personal" }); setShowForm(true); };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
@@ -51,7 +62,7 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h1 className="section-title">ПЕРСОНАЛ <span className="text-gray-400 font-golos font-normal text-sm">({filteredSessions.length})</span></h1>
+        <h1 className="section-title">ДОП. ТРЕНИРОВКИ <span className="text-gray-400 font-golos font-normal text-sm">({filteredSessions.length})</span></h1>
         <PrimaryBtn onClick={openAdd}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
       </div>
 
@@ -80,8 +91,21 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
         </div>
       </div>
 
-      {(search || filterPaid) && (
-        <button onClick={() => { setSearch(""); setFilterPaid(""); }}
+      {/* Фильтр по типу тренировки */}
+      <div className="flex flex-col gap-1.5">
+        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Тип</div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setFilterType("")} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={filterType === "" ? { background: "hsl(0,72%,40%)", color: "#fff" } : { background: "#eee", color: "#555" }}>Все</button>
+          {SESSION_TYPES.map(t => (
+            <button key={t.value} onClick={() => setFilterType(filterType === t.value ? "" : t.value)} className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={filterType === t.value ? { background: "hsl(262,52%,47%)", color: "#fff" } : { background: "#eee", color: "#555" }}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {(search || filterPaid || filterType) && (
+        <button onClick={() => { setSearch(""); setFilterPaid(""); setFilterType(""); }}
           className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
           <Icon name="X" size={12} />Сбросить фильтры
         </button>
@@ -112,10 +136,14 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-[13px] text-gray-900">{p.name as string}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2">
+              <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                 <span className="flex items-center gap-1"><Icon name="CalendarDays" size={10} />{(p.date as string).slice(5)}</span>
                 <span className="flex items-center gap-1"><Icon name="Clock" size={10} />{p.duration as number} мин</span>
               </div>
+              <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "hsl(262,52%,95%)", color: "hsl(262,52%,42%)" }}>
+                {sessionTypeLabel((p.session_type as string) || "personal")}
+              </span>
             </div>
             <div className="flex flex-col items-end gap-1 flex-shrink-0">
               <span className="font-oswald font-bold text-sm" style={{ color: "hsl(142,55%,38%)" }}>{(p.cost as number).toLocaleString()} ₽</span>
@@ -137,8 +165,8 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
 
       {filteredSessions.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <Icon name="User" size={40} className="mx-auto mb-2 opacity-20" />
-          <p>{allSessions.length === 0 ? "Нет персональных тренировок" : "Ничего не найдено"}</p>
+          <Icon name="Dumbbell" size={40} className="mx-auto mb-2 opacity-20" />
+          <p>{allSessions.length === 0 ? "Нет дополнительных тренировок" : "Ничего не найдено"}</p>
         </div>
       )}
 
@@ -147,6 +175,12 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
           <select className={inputCls} value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}>
             {(students as Record<string, unknown>[]).map(s => <option key={s.id as number} value={String(s.id)}>{s.name as string}</option>)}
           </select>
+          <div>
+            <div className="text-[11px] text-gray-400 font-semibold mb-1">Тип тренировки</div>
+            <select className={inputCls} value={form.session_type} onChange={e => setForm(p => ({ ...p, session_type: e.target.value }))}>
+              {SESSION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <input className={inputCls} type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
             <input className={inputCls} type="number" placeholder="Минут" value={form.duration} onChange={e => setForm(p => ({ ...p, duration: +e.target.value }))} />

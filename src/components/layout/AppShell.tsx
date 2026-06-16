@@ -6,7 +6,7 @@ export const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "students",   label: "Ученики",   icon: "Users" },
   { id: "payments",   label: "Оплаты",    icon: "CircleDollarSign" },
   { id: "attendance", label: "Посещения", icon: "CalendarCheck" },
-  { id: "personal",   label: "Персонал",  icon: "User" },
+  { id: "personal",   label: "Доп. трен.", icon: "Dumbbell" },
   { id: "expenses",   label: "Расходы",   icon: "Receipt" },
   { id: "notes",      label: "Заметки",   icon: "FileText" },
   { id: "reports",    label: "Отчёты",    icon: "BarChart2" },

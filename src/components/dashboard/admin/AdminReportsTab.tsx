@@ -45,9 +45,23 @@ export default function AdminReportsTab() {
     queryFn: () => reportsApi.get(month, trainerId ?? undefined),
   });
 
+  const [filterTrainerHall, setFilterTrainerHall] = useState("");
+
   const summary = data?.summary || {};
   const allStudents: Record<string, unknown>[] = data?.students || [];
-  const trainerRows: Record<string, unknown>[] = data?.trainers || [];
+  const allTrainerRows: Record<string, unknown>[] = data?.trainers || [];
+
+  // Залы тренеров (для режима "Все тренеры")
+  const trainerHalls = [...new Set(allTrainerRows.map(t => t.hall as string).filter(Boolean))];
+  const trainerRows = filterTrainerHall
+    ? allTrainerRows.filter(t => t.hall === filterTrainerHall)
+    : allTrainerRows;
+
+  // Итоги с учётом выбранного зала
+  const hallSubs  = trainerRows.reduce((s, t) => s + (t.subs_rev as number), 0);
+  const hallPers  = trainerRows.reduce((s, t) => s + (t.pers_rev as number), 0);
+  const hallTotal = hallSubs + hallPers;
+  const hallStudents = trainerRows.reduce((s, t) => s + (t.student_count as number), 0);
 
   // Фильтры по ученикам
   const halls  = [...new Set(allStudents.map(s => s.hall as string).filter(Boolean))];
@@ -126,10 +140,23 @@ export default function AdminReportsTab() {
 
       {!isLoading && (
         <>
+          {/* Фильтр по залам (режим "Все тренеры") */}
+          {!trainerId && trainerHalls.length > 0 && (
+            <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex flex-col gap-1.5">
+              <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Зал</div>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!filterTrainerHall} onClick={() => setFilterTrainerHall("")}>Все залы</Chip>
+                {trainerHalls.map(h => (
+                  <Chip key={h} active={filterTrainerHall === h} onClick={() => setFilterTrainerHall(filterTrainerHall === h ? "" : h)}>{h}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Итоговые статы */}
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
-              <div className="text-2xl font-oswald font-bold text-gray-700">{summary.total_students || 0}</div>
+              <div className="text-2xl font-oswald font-bold text-gray-700">{!trainerId ? hallStudents : (summary.total_students || 0)}</div>
               <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Учеников</div>
             </div>
             <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
@@ -139,12 +166,12 @@ export default function AdminReportsTab() {
             {summary.total_revenue !== undefined && (
               <>
                 <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
-                  <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(summary.subs_revenue || 0).toLocaleString("ru")} ₽</div>
+                  <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(!trainerId ? hallSubs : (summary.subs_revenue || 0)).toLocaleString("ru")} ₽</div>
                   <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Абонементы</div>
                 </div>
                 <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
-                  <div className="text-xl font-oswald font-bold text-purple-600">{(summary.pers_revenue || 0).toLocaleString("ru")} ₽</div>
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Персональные</div>
+                  <div className="text-xl font-oswald font-bold text-purple-600">{(!trainerId ? hallPers : (summary.pers_revenue || 0)).toLocaleString("ru")} ₽</div>
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Доп. трен.</div>
                 </div>
               </>
             )}
@@ -152,8 +179,10 @@ export default function AdminReportsTab() {
 
           {summary.total_revenue !== undefined && (
             <div className="rounded-2xl p-4 text-center" style={{ background: "hsl(0,72%,40%)" }}>
-              <div className="text-2xl font-oswald font-bold text-white">{(summary.total_revenue || 0).toLocaleString("ru")} ₽</div>
-              <div className="text-xs text-red-200 mt-1">Итого выручка за месяц</div>
+              <div className="text-2xl font-oswald font-bold text-white">{(!trainerId ? hallTotal : (summary.total_revenue || 0)).toLocaleString("ru")} ₽</div>
+              <div className="text-xs text-red-200 mt-1">
+                {!trainerId && filterTrainerHall ? `Итого по залу «${filterTrainerHall}»` : "Итого выручка за месяц"}
+              </div>
             </div>
           )}
 
