@@ -40,7 +40,7 @@ def send_push(subscription_info: dict, title: str, body: str, url: str = "/") ->
         return False
 
 def handler(event: dict, context) -> dict:
-    """Web Push: подписка, отписка, тест, cron-рассылка в 22:00. VAPID v3."""
+    """Web Push: подписка, отписка, тест, cron-рассылка в 22:00. VAPID v4."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -56,7 +56,8 @@ def handler(event: dict, context) -> dict:
 
     # Публичный ключ — не требует авторизации
     if method == "GET" and action == "vapid_public":
-        return ok({"vapid_public": VAPID_PUBLIC})
+        live_key = os.environ.get("VAPID_PUBLIC_KEY", "")
+        return ok({"vapid_public": live_key, "len": len(live_key)})
 
     # Временный генератор VAPID-ключей (отдаёт готовую пару для секретов)
     if method == "GET" and action == "gen_vapid":
