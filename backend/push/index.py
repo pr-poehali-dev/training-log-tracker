@@ -40,7 +40,7 @@ def send_push(subscription_info: dict, title: str, body: str, url: str = "/") ->
         return False
 
 def handler(event: dict, context) -> dict:
-    """Web Push: подписка, отписка, тест, cron-рассылка в 22:00."""
+    """Web Push: подписка, отписка, тест, cron-рассылка в 22:00. VAPID v2."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
