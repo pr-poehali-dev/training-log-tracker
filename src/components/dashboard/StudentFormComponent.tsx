@@ -111,7 +111,7 @@ export function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitL
       <div className="grid grid-cols-3 gap-2">
         {([
           { value: "regular",  label: "Обычный",   color: "#9ca3af", bg: "#f3f4f6" },
-          { value: "first",    label: "1 состав",  color: "#92400e", bg: "#fef3c7" },
+          { value: "first",    label: "1 состав",  color: "#1d4ed8", bg: "#dbeafe" },
           { value: "national", label: "Сборная",   color: "#991b1b", bg: "#fee2e2" },
         ] as { value: TeamLevel; label: string; color: string; bg: string }[]).map(opt => (
           <button

@@ -32,7 +32,8 @@ export async function offlineGet<T>(url: string, cacheKey: string): Promise<T> {
       throw e;
     }
   } else {
-    const cached = await cacheGet<T>(cacheKey);
+    // офлайн — используем кэш без TTL (любой возраст)
+    const cached = await cacheGet<T>(cacheKey, Infinity);
     if (cached !== null) return cached;
     throw new Error("Нет соединения и нет кэша");
   }

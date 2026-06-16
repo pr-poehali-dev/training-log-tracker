@@ -23,7 +23,7 @@ interface StudentCardProps {
 // Конфиг канки (цветная полоска) по уровню состава
 const TEAM_LEVEL_CONFIG = {
   national: { color: "hsl(0,72%,40%)",  bg: "hsl(0,72%,97%)",  label: "Сборная",  stripe: 4 },
-  first:    { color: "hsl(42,90%,42%)", bg: "hsl(42,95%,94%)", label: "1 состав", stripe: 4 },
+  first:    { color: "hsl(217,80%,42%)", bg: "hsl(217,90%,95%)", label: "1 состав", stripe: 4 },
   regular:  { color: "",                bg: "",                 label: "",         stripe: 0 },
 } as const;
 

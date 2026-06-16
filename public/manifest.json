@@ -1,7 +1,7 @@
 {
-  "name": "ИКО Журнал тренера",
-  "short_name": "ИКО Журнал",
-  "description": "Журнал посещаемости и оплат для тренеров каратэ",
+  "name": "Журнал Branch Lee",
+  "short_name": "Branch Lee",
+  "description": "Журнал посещаемости и оплат для тренеров Branch Lee",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

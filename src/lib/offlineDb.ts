@@ -34,12 +34,19 @@ export async function cacheSet(key: string, value: unknown): Promise<void> {
   });
 }
 
-export async function cacheGet<T>(key: string): Promise<T | null> {
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 минут
+
+export async function cacheGet<T>(key: string, ttl = CACHE_TTL_MS): Promise<T | null> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("cache" as StoreName, "readonly");
     const req = tx.objectStore("cache").get(key);
-    req.onsuccess = () => resolve(req.result?.value ?? null);
+    req.onsuccess = () => {
+      const record = req.result;
+      if (!record) return resolve(null);
+      if (Date.now() - record.ts > ttl) return resolve(null); // устарело
+      resolve(record.value ?? null);
+    };
     req.onerror = () => reject(req.error);
   });
 }
