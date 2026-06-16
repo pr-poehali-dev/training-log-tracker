@@ -75,7 +75,7 @@ export function StudentCard({
               filter: teamLevel === "national"
                 ? "none"
                 : teamLevel === "first"
-                ? "sepia(1) saturate(5) hue-rotate(5deg) brightness(1.05)"
+                ? "sepia(1) saturate(3) hue-rotate(180deg) brightness(1.1)"
                 : "grayscale(1) brightness(1.15) opacity(0.7)",
             }}
           />
