@@ -10,18 +10,24 @@
   "icons": [
     {
       "src": "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/85e11de5-baef-45b0-ba14-8a09de6ef09c.jpg",
-      "sizes": "any",
+      "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
       "src": "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/85e11de5-baef-45b0-ba14-8a09de6ef09c.jpg",
-      "sizes": "any",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn.poehali.dev/projects/c5550cb0-cdea-4800-869d-21e6a7620cbd/bucket/85e11de5-baef-45b0-ba14-8a09de6ef09c.jpg",
+      "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "maskable"
     }
   ],
   "categories": ["productivity", "sports"],
   "lang": "ru",
-  "version": "2"
+  "version": "3"
 }

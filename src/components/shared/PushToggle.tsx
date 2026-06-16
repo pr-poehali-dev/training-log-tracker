@@ -15,6 +15,7 @@ export default function PushToggle() {
   const [status, setStatus] = useState<Status>("unknown");
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState("");
+  const [errMsg, setErrMsg] = useState("");
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -33,22 +34,33 @@ export default function PushToggle() {
 
   const subscribe = async () => {
     setStatus("loading");
+    setErrMsg("");
     try {
-      const { vapid_public } = await pushApi.getVapidKey();
-      if (!vapid_public) throw new Error("VAPID ключ не настроен");
+      if (!window.isSecureContext) {
+        throw new Error("Уведомления работают только на установленном приложении или по HTTPS");
+      }
 
       const perm = await Notification.requestPermission();
       if (perm !== "granted") { setStatus("denied"); return; }
 
+      const { vapid_public } = await pushApi.getVapidKey();
+      if (!vapid_public) throw new Error("VAPID ключ не настроен на сервере");
+
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid_public),
-      });
+
+      // если уже есть подписка — переиспользуем
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid_public),
+        });
+      }
       await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON);
       setStatus("subscribed");
     } catch (e) {
       console.error(e);
+      setErrMsg(e instanceof Error ? e.message : "Не удалось включить уведомления");
       setStatus("unsubscribed");
     }
   };
@@ -118,6 +130,12 @@ export default function PushToggle() {
           <span className="text-xs text-red-400">Разреши в браузере</span>
         )}
       </div>
+
+      {errMsg && (
+        <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 leading-snug">
+          {errMsg}
+        </div>
+      )}
 
       {status === "subscribed" && (
         <div className="flex items-center gap-2">
