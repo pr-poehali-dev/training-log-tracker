@@ -20,8 +20,9 @@ function formatMonthRu(monthStr: string) {
 }
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const clean = base64String.trim().replace(/\s/g, "");
+  const padding = "=".repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
@@ -153,19 +154,22 @@ function useJournalReminder(user: AppUser) {
 }
 
 function usePushPromo() {
-  const STORAGE_KEY = "push_promo_shown";
+  const STORAGE_KEY = "push_promo_snooze"; // timestamp последнего закрытия
+  const SNOOZE_MS = 24 * 60 * 60 * 1000;   // повторно через сутки
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (Notification.permission === "denied") return;
-    if (localStorage.getItem(STORAGE_KEY)) return;
+
+    const snooze = Number(localStorage.getItem(STORAGE_KEY) || 0);
+    if (Date.now() - snooze < SNOOZE_MS) return; // ещё рано показывать снова
 
     // Показываем через 3 секунды после входа — даём приложению загрузиться
     const timer = setTimeout(() => {
       navigator.serviceWorker.ready.then(reg =>
         reg.pushManager.getSubscription().then(sub => {
-          if (!sub) setShow(true);
+          if (!sub) setShow(true); // подписки нет — показываем подсказку
         })
       );
     }, 3000);
@@ -174,7 +178,7 @@ function usePushPromo() {
   }, []);
 
   const dismiss = () => {
-    localStorage.setItem(STORAGE_KEY, "1");
+    localStorage.setItem(STORAGE_KEY, String(Date.now()));
     setShow(false);
   };
 

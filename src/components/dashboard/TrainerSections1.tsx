@@ -216,6 +216,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const activeFilters = (filterGrp ? 1 : 0) + (filterHall ? 1 : 0) + (filterSport ? 1 : 0) + (filterBirthday ? 1 : 0);
 
+  const presentCount = filtered.filter(s => isPresent(s.id as number)).length;
+  const absentCount = filtered.length - presentCount;
+
   return (
     <div className="flex flex-col gap-3">
       {offlineToast && (
@@ -241,6 +244,26 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           <PrimaryBtn onClick={() => setShowAdd(true)}>
             <Icon name="Plus" size={15} className="inline mr-1" />Добавить
           </PrimaryBtn>
+        </div>
+      </div>
+
+      {/* Счётчик посещаемости на сегодня */}
+      <div className="flex gap-2">
+        <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+          style={{ background: "hsl(142,50%,95%)" }}>
+          <Icon name="UserCheck" size={18} style={{ color: "hsl(142,55%,35%)" }} />
+          <div>
+            <div className="text-lg font-bold leading-none" style={{ color: "hsl(142,55%,30%)" }}>{presentCount}</div>
+            <div className="text-[10px] font-semibold text-gray-500 mt-0.5">Присутствуют</div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center gap-2 rounded-xl px-3 py-2.5"
+          style={{ background: "hsl(0,72%,96%)" }}>
+          <Icon name="UserX" size={18} style={{ color: "hsl(0,72%,45%)" }} />
+          <div>
+            <div className="text-lg font-bold leading-none" style={{ color: "hsl(0,72%,40%)" }}>{absentCount}</div>
+            <div className="text-[10px] font-semibold text-gray-500 mt-0.5">Отсутствуют</div>
+          </div>
         </div>
       </div>
 
