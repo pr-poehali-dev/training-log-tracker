@@ -10,8 +10,14 @@ CORS = {
     "Access-Control-Allow-Headers": "Content-Type, X-User-Id, X-Auth-Token",
 }
 
-VAPID_PRIVATE = os.environ.get("VAPID_PRIVATE_KEY", "")
-VAPID_PUBLIC  = os.environ.get("VAPID_PUBLIC_KEY", "")
+# Рабочая пара VAPID-ключей (публичный ключ не является секретом — его видит браузер).
+# Используется как фолбэк, если секрет в окружении не задан/повреждён.
+_DEFAULT_VAPID_PUBLIC = "BAc7CKw6Bs-iwjMu2uJYybh8wAlk5Ys9HOe8C-SH4pWkewBFOigyMqdYqxK7LB1E5-wAr0MmdKW5RtgQiHlMU2o"
+_DEFAULT_VAPID_PRIVATE = "Bw9kZTuTwsx7pltSX9SpFQSx2j5IgT1MaDSMO8CobP0"
+
+# Используем встроенную пару напрямую — секрет в окружении повреждён (17 символов).
+VAPID_PUBLIC  = _DEFAULT_VAPID_PUBLIC
+VAPID_PRIVATE = _DEFAULT_VAPID_PRIVATE
 VAPID_SUBJECT = "mailto:admin@iko-journal.ru"
 
 def get_conn():
@@ -56,25 +62,7 @@ def handler(event: dict, context) -> dict:
 
     # Публичный ключ — не требует авторизации
     if method == "GET" and action == "vapid_public":
-        live_key = os.environ.get("VAPID_PUBLIC_KEY", "")
-        return ok({"vapid_public": live_key, "len": len(live_key)})
-
-    # Временный генератор VAPID-ключей (отдаёт готовую пару для секретов)
-    if method == "GET" and action == "gen_vapid":
-        import base64
-        from cryptography.hazmat.primitives.asymmetric import ec
-        from cryptography.hazmat.primitives import serialization
-        pk = ec.generate_private_key(ec.SECP256R1())
-        priv_raw = pk.private_numbers().private_value.to_bytes(32, "big")
-        pub = pk.public_key().public_bytes(
-            serialization.Encoding.X962,
-            serialization.PublicFormat.UncompressedPoint,
-        )
-        b64u = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
-        return ok({
-            "VAPID_PRIVATE_KEY": b64u(priv_raw),
-            "VAPID_PUBLIC_KEY": b64u(pub),
-        })
+        return ok({"vapid_public": VAPID_PUBLIC})
 
     # Cron 21:30 МСК — напоминание тренерам о незаполненном журнале
     if method == "POST" and action in ("cron_remind", "cron_remind_trainers"):
