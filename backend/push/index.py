@@ -58,6 +58,23 @@ def handler(event: dict, context) -> dict:
     if method == "GET" and action == "vapid_public":
         return ok({"vapid_public": VAPID_PUBLIC})
 
+    # Временный генератор VAPID-ключей (отдаёт готовую пару для секретов)
+    if method == "GET" and action == "gen_vapid":
+        import base64
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import serialization
+        pk = ec.generate_private_key(ec.SECP256R1())
+        priv_raw = pk.private_numbers().private_value.to_bytes(32, "big")
+        pub = pk.public_key().public_bytes(
+            serialization.Encoding.X962,
+            serialization.PublicFormat.UncompressedPoint,
+        )
+        b64u = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+        return ok({
+            "VAPID_PRIVATE_KEY": b64u(priv_raw),
+            "VAPID_PUBLIC_KEY": b64u(pub),
+        })
+
     # Cron 21:30 МСК — напоминание тренерам о незаполненном журнале
     if method == "POST" and action in ("cron_remind", "cron_remind_trainers"):
         secret = qs.get("secret") or body.get("secret", "")
