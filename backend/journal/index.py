@@ -119,7 +119,8 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Укажите month")
             cur.execute(f"""
-                SELECT p.id, p.student_id, s.name, p.month, p.paid, p.paid_at, p.trainer_id, s.fee
+                SELECT p.id, p.student_id, s.name, p.month, p.paid, p.paid_at, p.trainer_id,
+                       s.fee, s.hall, s.hall2, s.grp
                 FROM {S}.payments p JOIN {S}.students s ON s.id=p.student_id
                 WHERE p.month=%s AND s.trainer_id=%s
                 ORDER BY s.name
@@ -128,14 +129,16 @@ def handler(event: dict, context) -> dict:
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
 
             cur.execute(f"""
-                SELECT s.id, s.name, s.fee FROM {S}.students s
+                SELECT s.id, s.name, s.fee, s.hall, s.hall2, s.grp FROM {S}.students s
                 WHERE s.trainer_id=%s AND s.id NOT IN (
                     SELECT student_id FROM {S}.payments WHERE month=%s
                 )
                 ORDER BY s.name
             """, (trainer_filter, month))
             for r in cur.fetchall():
-                rows.append({"student_id": r[0], "name": r[1], "fee": r[2], "month": month, "paid": False, "paid_at": None})
+                rows.append({"student_id": r[0], "name": r[1], "fee": r[2],
+                             "hall": r[3], "hall2": r[4], "grp": r[5],
+                             "month": month, "paid": False, "paid_at": None})
 
             rows.sort(key=lambda x: x["name"])
             cur.close(); conn.close()

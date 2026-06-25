@@ -1,4 +1,5 @@
 import Icon from "@/components/ui/icon";
+import { calcAge, ageLabel } from "./trainer-ui";
 
 interface StudentCardProps {
   s: Record<string, unknown>;
@@ -119,10 +120,10 @@ export function StudentCard({
                 <span>{s.schedule as string}</span>
               </div>
             )}
-            {s.birthdate && (
+            {s.birthdate && calcAge(s.birthdate as string) !== null && (
               <div className="flex items-center gap-1 text-[11px] text-gray-400">
                 <Icon name="Cake" size={11} />
-                <span>{new Date(s.birthdate as string).toLocaleDateString("ru", { day: "2-digit", month: "2-digit", year: "numeric" })}</span>
+                <span>{ageLabel(calcAge(s.birthdate as string)!)}</span>
               </div>
             )}
             {s.created_at && (

@@ -506,12 +506,12 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
 
   const allPayData = payData as Record<string, unknown>[];
   const grps  = [...new Set(allPayData.map(p => p.grp  as string).filter(Boolean))];
-  const halls = [...new Set(allPayData.map(p => p.hall as string).filter(Boolean))];
+  const halls = [...new Set(allPayData.flatMap(p => [p.hall as string, p.hall2 as string]).filter(Boolean))];
 
   const filtered = allPayData.filter(p => {
     if (search && !(p.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterGrp  && p.grp  !== filterGrp)  return false;
-    if (filterHall && p.hall !== filterHall)  return false;
+    if (filterHall && p.hall !== filterHall && p.hall2 !== filterHall)  return false;
     if (filterPaid === "paid"   && !p.paid)   return false;
     if (filterPaid === "unpaid" &&  p.paid)   return false;
     return true;

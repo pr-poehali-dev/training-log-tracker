@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApi, studentsApi, attendanceApi, paymentsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
+import { calcAge, ageLabel } from "@/components/dashboard/trainer-ui";
 
 const todayStr  = () => new Date().toISOString().slice(0, 10);
 const monStr    = () => new Date().toISOString().slice(0, 7);
@@ -276,9 +277,9 @@ export default function AdminDataTab() {
                           <Icon name="Clock" size={10} />{s.schedule as string}
                         </div>
                       )}
-                      {s.birthdate && (
+                      {s.birthdate && calcAge(s.birthdate as string) !== null && (
                         <div className="text-[10px] text-gray-300 flex items-center gap-1 mt-0.5">
-                          <Icon name="Cake" size={10} />{(s.birthdate as string).split("-").reverse().join(".")}
+                          <Icon name="Cake" size={10} />{ageLabel(calcAge(s.birthdate as string)!)}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-1 mt-1.5">

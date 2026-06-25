@@ -63,14 +63,14 @@ export default function AdminReportsTab() {
   const hallTotal = hallSubs + hallPers;
   const hallStudents = trainerRows.reduce((s, t) => s + (t.student_count as number), 0);
 
-  // Фильтры по ученикам
-  const halls  = [...new Set(allStudents.map(s => s.hall as string).filter(Boolean))];
+  // Фильтры по ученикам (учитываем оба зала: hall и hall2)
+  const halls  = [...new Set(allStudents.flatMap(s => [s.hall as string, s.hall2 as string]).filter(Boolean))];
   const grps   = [...new Set(allStudents.map(s => s.grp  as string).filter(Boolean))];
   const hasSport = allStudents.some(s => s.has_sport);
 
   const students = allStudents.filter(s => {
     if (search && !(s.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterHall && s.hall !== filterHall) return false;
+    if (filterHall && s.hall !== filterHall && s.hall2 !== filterHall) return false;
     if (filterGrp  && s.grp  !== filterGrp)  return false;
     if (filterPaid === "paid"   && !s.paid)  return false;
     if (filterPaid === "unpaid" &&  s.paid)  return false;
