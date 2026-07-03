@@ -159,14 +159,16 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
                 : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "hsl(0,72%,97%)", color: "hsl(0,72%,50%)" }}>Не оплачено</span>}
             </div>
           </div>
-          <div className="flex border-t border-gray-100 relative z-10">
-            <button onClick={() => openEdit(p)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
-              <Icon name="Pencil" size={12} />Изменить
-            </button>
-            <button onClick={() => del(p.id as number)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold hover:bg-red-50 transition-colors" style={{ color: "hsl(0,72%,50%)" }}>
-              <Icon name="Trash2" size={12} />Удалить
-            </button>
-          </div>
+          {user.role === "admin" && (
+            <div className="flex border-t border-gray-100 relative z-10">
+              <button onClick={() => openEdit(p)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+                <Icon name="Pencil" size={12} />Изменить
+              </button>
+              <button onClick={() => del(p.id as number)} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold hover:bg-red-50 transition-colors" style={{ color: "hsl(0,72%,50%)" }}>
+                <Icon name="Trash2" size={12} />Удалить
+              </button>
+            </div>
+          )}
         </div>
       ))}
 

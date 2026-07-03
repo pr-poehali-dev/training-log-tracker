@@ -111,6 +111,7 @@ def handler(event: dict, context) -> dict:
             SELECT
                 u.id, u.full_name, u.hall,
                 COUNT(DISTINCT s.id) as student_count,
+                COUNT(DISTINCT CASE WHEN p.paid THEN s.id END) as paid_count,
                 COALESCE(SUM(CASE WHEN p.paid THEN s.fee ELSE 0 END), 0) as subs_rev,
                 COALESCE((SELECT SUM(ps2.cost) FROM {S}.personal_sessions ps2
                           JOIN {S}.students s2 ON s2.id=ps2.student_id
@@ -130,6 +131,7 @@ def handler(event: dict, context) -> dict:
             t["total_rev"] = int(t["subs_rev"]) + int(t["pers_rev"])
             t["subs_rev"] = int(t["subs_rev"])
             t["pers_rev"] = int(t["pers_rev"])
+            t["paid_count"] = int(t["paid_count"])
             total_subs += t["subs_rev"]
             total_pers += t["pers_rev"]
             trainers_summary.append(t)
@@ -140,6 +142,8 @@ def handler(event: dict, context) -> dict:
             summary["pers_revenue"] = total_pers
             summary["total_revenue"] = total_subs + total_pers
             summary["total_students"] = sum(int(t["student_count"]) for t in trainers_summary)
+            summary["paid_count"] = sum(int(t["paid_count"]) for t in trainers_summary)
+            summary["unpaid_count"] = summary["total_students"] - summary["paid_count"]
 
     cur.close(); conn.close()
     return ok({

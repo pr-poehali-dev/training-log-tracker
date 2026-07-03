@@ -229,15 +229,18 @@ def handler(event: dict, context) -> dict:
             return ok({"id": new_id, "message": "Добавлено"})
 
         if method == "PUT":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Редактировать доп. тренировки может только администратор", 403)
             sid = qs.get("id")
             if not sid:
                 cur.close(); conn.close()
                 return err("Нет id")
             cur.execute(f"SELECT trainer_id FROM {S}.personal_sessions WHERE id=%s", (sid,))
             row = cur.fetchone()
-            if not row or (role != "admin" and str(row[0]) != str(uid)):
+            if not row:
                 cur.close(); conn.close()
-                return err("Нет прав", 403)
+                return err("Не найдено", 404)
             cur.execute(f"""
                 UPDATE {S}.personal_sessions SET date=%s, duration=%s, cost=%s, paid=%s, note=%s, session_type=%s WHERE id=%s
             """, (body.get("date"), int(body.get("duration", 60)), int(body.get("cost", 1500)),
@@ -248,15 +251,18 @@ def handler(event: dict, context) -> dict:
             return ok({"message": "Обновлено"})
 
         if method == "DELETE":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Удалять доп. тренировки может только администратор", 403)
             sid = qs.get("id")
             if not sid:
                 cur.close(); conn.close()
                 return err("Нет id")
             cur.execute(f"SELECT trainer_id FROM {S}.personal_sessions WHERE id=%s", (sid,))
             row = cur.fetchone()
-            if not row or (role != "admin" and str(row[0]) != str(uid)):
+            if not row:
                 cur.close(); conn.close()
-                return err("Нет прав", 403)
+                return err("Не найдено", 404)
             cur.execute(f"DELETE FROM {S}.personal_sessions WHERE id=%s", (sid,))
             conn.commit()
             cur.close(); conn.close()

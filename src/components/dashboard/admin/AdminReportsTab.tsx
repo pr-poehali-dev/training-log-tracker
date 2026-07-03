@@ -46,6 +46,9 @@ export default function AdminReportsTab() {
   });
 
   const [filterTrainerHall, setFilterTrainerHall] = useState("");
+  const [openStat, setOpenStat] = useState<"students" | "paid" | "subs" | "pers" | "total" | null>(null);
+  const toggleStat = (key: "students" | "paid" | "subs" | "pers" | "total") =>
+    setOpenStat(prev => (prev === key ? null : key));
 
   const summary = data?.summary || {};
   const allStudents: Record<string, unknown>[] = data?.students || [];
@@ -68,6 +71,84 @@ export default function AdminReportsTab() {
   const grps   = [...new Set(allStudents.map(s => s.grp  as string).filter(Boolean))];
   const hasSport = allStudents.some(s => s.has_sport);
 
+  // Разбивка отчёта конкретного тренера по его залам
+  const hallBreakdown = halls.map(h => {
+    const list = allStudents.filter(s => s.hall === h || s.hall2 === h);
+    const paidList = list.filter(s => s.paid);
+    const subsRev = paidList.reduce((sum, s) => sum + ((s.fee as number) || 0), 0);
+    const persRev = list.reduce((sum, s) => sum + Number(s.personal_revenue || 0), 0);
+    return {
+      hall: h,
+      studentCount: list.length,
+      paidCount: paidList.length,
+      subsRev,
+      persRev,
+      totalRev: subsRev + persRev,
+    };
+  });
+  const maxHallRev = Math.max(...hallBreakdown.map(h => h.totalRev), 1);
+
+  // Детализация для раскрывающихся кнопок-сумм
+  type StatRow = { name: string; sub?: string; value: string; positive?: boolean };
+  const getStatRows = (key: "students" | "paid" | "subs" | "pers" | "total"): StatRow[] => {
+    if (!trainerId) {
+      // Режим "Все тренеры" — детализация по тренерам (с учётом фильтра зала)
+      return trainerRows.map(t => {
+        const hallLabel = t.hall ? ` · ${t.hall as string}` : "";
+        switch (key) {
+          case "students":
+            return { name: t.full_name as string, sub: hallLabel.trim(), value: `${t.student_count as number} уч.` };
+          case "paid":
+            return { name: t.full_name as string, sub: hallLabel.trim(), value: `${t.paid_count as number}/${t.student_count as number}` };
+          case "subs":
+            return { name: t.full_name as string, sub: hallLabel.trim(), value: `${(t.subs_rev as number).toLocaleString("ru")} ₽`, positive: (t.subs_rev as number) > 0 };
+          case "pers":
+            return { name: t.full_name as string, sub: hallLabel.trim(), value: `${(t.pers_rev as number).toLocaleString("ru")} ₽`, positive: (t.pers_rev as number) > 0 };
+          case "total":
+            return { name: t.full_name as string, sub: hallLabel.trim(), value: `${(t.total_rev as number).toLocaleString("ru")} ₽`, positive: (t.total_rev as number) > 0 };
+        }
+      });
+    }
+    // Режим конкретного тренера — детализация по ученикам
+    const subLine = (s: Record<string, unknown>) => [s.hall, s.hall2].filter(Boolean).join(" · ");
+    switch (key) {
+      case "students":
+        return allStudents.map(s => ({ name: s.name as string, sub: subLine(s), value: s.paid ? "Оплачен" : "Не оплачен", positive: Boolean(s.paid) }));
+      case "paid":
+        return allStudents.filter(s => s.paid).map(s => ({ name: s.name as string, sub: subLine(s), value: `${(s.fee as number).toLocaleString("ru")} ₽`, positive: true }));
+      case "subs":
+        return allStudents.filter(s => s.paid).map(s => ({ name: s.name as string, sub: subLine(s), value: `${(s.fee as number).toLocaleString("ru")} ₽`, positive: true }));
+      case "pers":
+        return allStudents.filter(s => Number(s.personal_revenue || 0) > 0).map(s => ({ name: s.name as string, sub: subLine(s), value: `${Number(s.personal_revenue).toLocaleString("ru")} ₽`, positive: true }));
+      case "total":
+        return allStudents.filter(s => s.paid || Number(s.personal_revenue || 0) > 0).map(s => {
+          const total = (s.paid ? (s.fee as number) : 0) + Number(s.personal_revenue || 0);
+          return { name: s.name as string, sub: subLine(s), value: `${total.toLocaleString("ru")} ₽`, positive: total > 0 };
+        });
+    }
+  };
+
+  const StatDropdown = ({ statKey }: { statKey: "students" | "paid" | "subs" | "pers" | "total" }) => {
+    if (openStat !== statKey) return null;
+    const rows = getStatRows(statKey);
+    return (
+      <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden -mt-1">
+        <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+          {rows.length === 0 && <div className="text-center py-4 text-xs text-gray-400">Нет данных</div>}
+          {rows.map((r, i) => (
+            <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-gray-800 truncate">{r.name}</div>
+                {r.sub && <div className="text-[10px] text-gray-400 truncate">{r.sub}</div>}
+              </div>
+              <span className="text-xs font-bold flex-shrink-0" style={{ color: r.positive ? "hsl(142,55%,32%)" : "#9ca3af" }}>{r.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const students = allStudents.filter(s => {
     if (search && !(s.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterHall && s.hall !== filterHall && s.hall2 !== filterHall) return false;
@@ -80,7 +161,7 @@ export default function AdminReportsTab() {
   });
 
   const activeFilters = (filterHall ? 1 : 0) + (filterGrp ? 1 : 0) + (filterPaid ? 1 : 0) + (filterSport ? 1 : 0);
-  const resetFilters = () => { setFilterHall(""); setFilterGrp(""); setFilterPaid(""); setFilterSport(""); setSearch(""); };
+  const resetFilters = () => { setFilterHall(""); setFilterGrp(""); setFilterPaid(""); setFilterSport(""); setSearch(""); setOpenStat(null); };
 
   const maxRev = Math.max(...trainerRows.map(t => t.total_rev as number), 1);
 
@@ -104,6 +185,17 @@ export default function AdminReportsTab() {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv" }));
     a.download = `отчёт_${month}${trainerId ? "_тренер" : ""}.csv`;
+    a.click();
+  };
+
+  // Экспорт разбивки по залам тренера отдельным CSV
+  const exportHallsCsv = () => {
+    const headers = ["Зал", "Учеников", "Оплатили", "Абонементы ₽", "Доп. трен. ₽", "Итого ₽"];
+    const rows = hallBreakdown.map(h => [h.hall, h.studentCount, h.paidCount, h.subsRev, h.persRev, h.totalRev]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ""}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv" }));
+    a.download = `отчёт_${month}_по_залам.csv`;
     a.click();
   };
 
@@ -153,37 +245,72 @@ export default function AdminReportsTab() {
             </div>
           )}
 
-          {/* Итоговые статы */}
+          {/* Итоговые статы — кликабельные, раскрывают детализацию */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+            <button onClick={() => toggleStat("students")}
+              className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100 active:opacity-70 transition-opacity">
               <div className="text-2xl font-oswald font-bold text-gray-700">{!trainerId ? hallStudents : (summary.total_students || 0)}</div>
-              <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Учеников</div>
-            </div>
-            <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5 flex items-center justify-center gap-0.5">
+                Учеников<Icon name={openStat === "students" ? "ChevronUp" : "ChevronDown"} size={10} />
+              </div>
+            </button>
+            <button onClick={() => toggleStat("paid")}
+              className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100 active:opacity-70 transition-opacity">
               <div className="text-2xl font-oswald font-bold" style={{ color: "hsl(142,55%,38%)" }}>{summary.paid_count || 0}</div>
-              <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Оплатили</div>
-            </div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5 flex items-center justify-center gap-0.5">
+                Оплатили<Icon name={openStat === "paid" ? "ChevronUp" : "ChevronDown"} size={10} />
+              </div>
+            </button>
+            <StatDropdown statKey="students" />
+            <StatDropdown statKey="paid" />
             {summary.total_revenue !== undefined && (
               <>
-                <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+                <button onClick={() => toggleStat("subs")}
+                  className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100 active:opacity-70 transition-opacity">
                   <div className="text-xl font-oswald font-bold" style={{ color: "hsl(0,72%,40%)" }}>{(!trainerId ? hallSubs : (summary.subs_revenue || 0)).toLocaleString("ru")} ₽</div>
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Абонементы</div>
-                </div>
-                <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100">
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5 flex items-center justify-center gap-0.5">
+                    Абонементы<Icon name={openStat === "subs" ? "ChevronUp" : "ChevronDown"} size={10} />
+                  </div>
+                </button>
+                <button onClick={() => toggleStat("pers")}
+                  className="bg-white rounded-2xl p-3 text-center shadow-sm border border-gray-100 active:opacity-70 transition-opacity">
                   <div className="text-xl font-oswald font-bold text-purple-600">{(!trainerId ? hallPers : (summary.pers_revenue || 0)).toLocaleString("ru")} ₽</div>
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Доп. трен.</div>
-                </div>
+                  <div className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5 flex items-center justify-center gap-0.5">
+                    Доп. трен.<Icon name={openStat === "pers" ? "ChevronUp" : "ChevronDown"} size={10} />
+                  </div>
+                </button>
+                <StatDropdown statKey="subs" />
+                <StatDropdown statKey="pers" />
               </>
             )}
           </div>
 
           {summary.total_revenue !== undefined && (
-            <div className="rounded-2xl p-4 text-center" style={{ background: "hsl(0,72%,40%)" }}>
-              <div className="text-2xl font-oswald font-bold text-white">{(!trainerId ? hallTotal : (summary.total_revenue || 0)).toLocaleString("ru")} ₽</div>
-              <div className="text-xs text-red-200 mt-1">
-                {!trainerId && filterTrainerHall ? `Итого по залу «${filterTrainerHall}»` : "Итого выручка за месяц"}
-              </div>
-            </div>
+            <>
+              <button onClick={() => toggleStat("total")} className="w-full rounded-2xl p-4 text-center active:opacity-90 transition-opacity" style={{ background: "hsl(0,72%,40%)" }}>
+                <div className="text-2xl font-oswald font-bold text-white">{(!trainerId ? hallTotal : (summary.total_revenue || 0)).toLocaleString("ru")} ₽</div>
+                <div className="text-xs text-red-200 mt-1 flex items-center justify-center gap-1">
+                  {!trainerId && filterTrainerHall ? `Итого по залу «${filterTrainerHall}»` : "Итого выручка за месяц"}
+                  <Icon name={openStat === "total" ? "ChevronUp" : "ChevronDown"} size={12} />
+                </div>
+              </button>
+              {openStat === "total" && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden -mt-1">
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+                    {getStatRows("total").length === 0 && <div className="text-center py-4 text-xs text-gray-400">Нет данных</div>}
+                    {getStatRows("total").map((r, i) => (
+                      <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-gray-800 truncate">{r.name}</div>
+                          {r.sub && <div className="text-[10px] text-gray-400 truncate">{r.sub}</div>}
+                        </div>
+                        <span className="text-xs font-bold flex-shrink-0" style={{ color: "hsl(142,55%,32%)" }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Таблица по ВСЕМ тренерам ── */}
@@ -218,6 +345,40 @@ export default function AdminReportsTab() {
           {/* ── Детали по конкретному тренеру ── */}
           {trainerId && (
             <>
+              {/* Разбивка по залам тренера */}
+              {hallBreakdown.length > 0 && (
+                <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                  <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Icon name="Building2" size={14} className="text-gray-400" />
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">По залам</span>
+                    </div>
+                    {hallBreakdown.length > 1 && (
+                      <button onClick={exportHallsCsv}
+                        className="flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-gray-600 transition-colors">
+                        <Icon name="Download" size={12} />CSV
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {hallBreakdown.map(h => (
+                      <div key={h.hall} className="px-3 py-3">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-sm font-bold text-gray-800">{h.hall}</span>
+                          <span className="font-oswald font-bold text-sm" style={{ color: "hsl(0,72%,40%)" }}>
+                            {h.totalRev.toLocaleString("ru")} ₽
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-400 mb-1.5">
+                          {h.studentCount} уч. ({h.paidCount} оплатили) · абон. {h.subsRev.toLocaleString("ru")} ₽ · доп. {h.persRev.toLocaleString("ru")} ₽
+                        </div>
+                        <MiniBar value={h.totalRev} max={maxHallRev} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Фильтры учеников */}
               <div className="flex flex-col gap-3">
                 {/* Поиск */}
