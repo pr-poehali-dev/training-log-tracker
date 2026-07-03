@@ -4,7 +4,7 @@ import { studentsApi, attendanceApi, paymentsApi, authApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
-import { type FormState, StudentForm } from "./StudentFormComponent";
+import { type FormState, StudentForm, addMonths } from "./StudentFormComponent";
 import { ArchivedList } from "./ArchivedListComponent";
 import { StudentCard } from "./StudentCard";
 import ImportStudentsModal from "./ImportStudentsModal";
@@ -43,6 +43,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [renameGrpModal, setRenameGrpModal] = useState<string | null>(null);
   const [renameGrpNew, setRenameGrpNew] = useState("");
   const [renamingSaving, setRenamingSaving] = useState(false);
+  const [certStudent, setCertStudent] = useState<Record<string, unknown> | null>(null);
+  const [certForm, setCertForm] = useState({ cert: false, cert_from: "", cert_to: "" });
+  const [certSaving, setCertSaving] = useState(false);
 
   const showToast = (msg: string) => {
     setOfflineToast(msg);
@@ -61,6 +64,12 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     (attData as Record<string, unknown>[]).some((a: Record<string, unknown>) =>
       a.student_id === sid && a.present && (a.group_type ?? "main") === groupType);
   const isPaid = (sid: number) => (payData as Record<string, unknown>[]).some((p: Record<string, unknown>) => p.student_id === sid && p.paid);
+  const canUnmarkPay = (sid: number) => {
+    const p = (payData as Record<string, unknown>[]).find(p => p.student_id === sid);
+    if (!p?.paid || !p.paid_at) return false;
+    const elapsed = Date.now() - new Date(p.paid_at as string).getTime();
+    return elapsed <= 24 * 3600 * 1000;
+  };
   const isCertOk = (s: Record<string, unknown>) => s.cert && s.cert_to && (s.cert_to as string) >= today;
   const isInsuranceOk = (s: Record<string, unknown>) => s.insurance && s.insurance_to && (s.insurance_to as string) >= today;
   const isBirthday = (s: Record<string, unknown>) => {
@@ -137,6 +146,41 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         qc.invalidateQueries({ queryKey: ["pay-month"] });
       }
     } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+  };
+
+  const unmarkPay = async (sid: number) => {
+    setToggling(prev => new Set([...prev, sid]));
+    try {
+      const res = await paymentsApi.mark({ student_id: sid, month, paid: false });
+      if (res?.offline) {
+        showToast("✓ Оплата снята (офлайн)");
+        qc.setQueryData(["pay-month", month, user.id], (old: Record<string, unknown>[] | undefined) => {
+          const arr = old || [];
+          return arr.map(p => p.student_id === sid ? { ...p, paid: false } : p);
+        });
+      } else {
+        qc.invalidateQueries({ queryKey: ["pay-month"] });
+      }
+    } finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+  };
+
+  const openEditCert = (s: Record<string, unknown>) => {
+    setCertStudent(s);
+    setCertForm({
+      cert: Boolean(s.cert),
+      cert_from: (s.cert_from as string) || "",
+      cert_to: (s.cert_to as string) || "",
+    });
+  };
+
+  const saveCert = async () => {
+    if (!certStudent) return;
+    setCertSaving(true);
+    try {
+      await studentsApi.update(certStudent.id as number, { ...certStudent, ...certForm } as Record<string, unknown>);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      setCertStudent(null);
+    } finally { setCertSaving(false); }
   };
 
   const addStudent = async (e: React.FormEvent) => {
@@ -404,6 +448,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
             key={sid}
             s={s}
             paid={paid}
+            canUnmarkPay={canUnmarkPay(sid)}
             isPresentMain={isPresent(sid, "main")}
             isPresentSport={isPresent(sid, "sport")}
             togglingPay={toggling.has(sid)}
@@ -416,7 +461,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
             newStudent={isNew(s)}
             onEdit={() => openEdit(s)}
             onArchive={() => { setArchiveStudent(s); setArchiveReason(""); }}
+            onEditCert={() => openEditCert(s)}
             onMarkPay={() => markPay(sid)}
+            onUnmarkPay={() => unmarkPay(sid)}
             onMarkMain={() => markAtt(sid, "main")}
             onMarkSport={() => markAtt(sid, "sport")}
           />
@@ -467,6 +514,48 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         <datalist id="dl-grps-e">{grps.map(v => <option key={v} value={v} />)}</datalist>
         <datalist id="dl-schedules-e">{schedules.map(v => <option key={v} value={v} />)}</datalist>
         <StudentForm form={editForm} setForm={setEditForm} onSubmit={saveEdit} onCancel={() => setEditStudent(null)} saving={saving} submitLabel="Сохранить изменения" listSuffix="-e" />
+      </BottomSheet>
+
+      {/* Быстрое редактирование справки */}
+      <BottomSheet open={!!certStudent} onClose={() => setCertStudent(null)} title={`Справка: ${certStudent?.name || ""}`}>
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={certForm.cert} onChange={e => setCertForm(p => ({ ...p, cert: e.target.checked }))} className="accent-red-600 w-4 h-4" />
+            Есть медицинская справка
+          </label>
+          {certForm.cert && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[10px] text-gray-400 mb-1">Дата выдачи</div>
+                  <input className={inputCls} type="date" value={certForm.cert_from} onChange={e => setCertForm(p => ({ ...p, cert_from: e.target.value }))} />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-400 mb-1">Дата окончания</div>
+                  <input className={inputCls} type="date" value={certForm.cert_to} onChange={e => setCertForm(p => ({ ...p, cert_to: e.target.value }))} />
+                </div>
+              </div>
+              {certForm.cert_from && (
+                <div className="flex gap-2">
+                  <button type="button"
+                    className="flex-1 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                    onClick={() => setCertForm(p => ({ ...p, cert_to: addMonths(p.cert_from, 6) }))}>
+                    + 6 месяцев
+                  </button>
+                  <button type="button"
+                    className="flex-1 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                    onClick={() => setCertForm(p => ({ ...p, cert_to: addMonths(p.cert_from, 12) }))}>
+                    + 1 год
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          <div className="flex gap-2 pt-1">
+            <OutlineBtn onClick={() => setCertStudent(null)}>Отмена</OutlineBtn>
+            <PrimaryBtn onClick={saveCert} disabled={certSaving}>{certSaving ? "..." : "Сохранить"}</PrimaryBtn>
+          </div>
+        </div>
       </BottomSheet>
 
       {/* Переименовать группу */}
@@ -526,6 +615,17 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
     setToggling(prev => new Set([...prev, sid]));
     try { await paymentsApi.mark({ student_id: sid, month, paid: true }); qc.invalidateQueries({ queryKey: ["pay-month"] }); }
     finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+  };
+
+  const unmarkPay = async (sid: number) => {
+    setToggling(prev => new Set([...prev, sid]));
+    try { await paymentsApi.mark({ student_id: sid, month, paid: false }); qc.invalidateQueries({ queryKey: ["pay-month"] }); }
+    finally { setToggling(prev => { const n = new Set(prev); n.delete(sid); return n; }); }
+  };
+
+  const canUnmarkPay = (p: Record<string, unknown>) => {
+    if (!p.paid || !p.paid_at) return false;
+    return Date.now() - new Date(p.paid_at as string).getTime() <= 24 * 3600 * 1000;
   };
 
   if (isLoading) return <Loading />;
@@ -637,7 +737,7 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
                 alt="" className="absolute" style={{ width: 80, height: 80, opacity: 0.04, right: -8, top: "50%", transform: "translateY(-50%)", objectFit: "contain", filter: "grayscale(1)" }} />
             </div>
             <div className="p-3 flex items-center gap-3 relative z-10">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-oswald font-bold flex-shrink-0 ${p.paid ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-oswald font-bold flex-shrink-0 ${p.paid ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                 {ini(p.name as string)}
               </div>
               <div className="flex-1 min-w-0">
@@ -649,9 +749,17 @@ export function PaymentsSection({ user, month }: { user: AppUser; month: string 
                 </div>
               </div>
               {p.paid ? (
-                <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>
-                  <Icon name="Check" size={12} />Оплачен
-                </span>
+                canUnmarkPay(p) ? (
+                  <button disabled={t} onClick={() => unmarkPay(sid)}
+                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl transition-all active:opacity-80 disabled:opacity-60"
+                    style={{ background: "hsl(142,55%,90%)", color: "hsl(142,60%,28%)" }}>
+                    <Icon name="CheckCircle2" size={13} />{t ? "..." : "Оплачено (снять)"}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full" style={{ background: "hsl(142,55%,90%)", color: "hsl(142,60%,28%)" }}>
+                    <Icon name="CheckCircle2" size={13} />Оплачено
+                  </span>
+                )
               ) : (
                 <button disabled={t} onClick={() => markPay(sid)}
                   className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-all active:opacity-80 disabled:opacity-60"

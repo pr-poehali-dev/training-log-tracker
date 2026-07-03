@@ -4,6 +4,7 @@ import { calcAge, ageLabel } from "./trainer-ui";
 interface StudentCardProps {
   s: Record<string, unknown>;
   paid: boolean;
+  canUnmarkPay: boolean;
   isPresentMain: boolean;
   isPresentSport: boolean;
   togglingPay: boolean;
@@ -16,7 +17,9 @@ interface StudentCardProps {
   newStudent: boolean;
   onEdit: () => void;
   onArchive: () => void;
+  onEditCert: () => void;
   onMarkPay: () => void;
+  onUnmarkPay: () => void;
   onMarkMain: () => void;
   onMarkSport: () => void;
 }
@@ -29,10 +32,10 @@ const TEAM_LEVEL_CONFIG = {
 } as const;
 
 export function StudentCard({
-  s, paid, isPresentMain, isPresentSport,
+  s, paid, canUnmarkPay, isPresentMain, isPresentSport,
   togglingPay, togglingMain, togglingSport,
   canEdit, certOk, insOk, birthday, newStudent,
-  onEdit, onArchive, onMarkPay, onMarkMain, onMarkSport,
+  onEdit, onArchive, onEditCert, onMarkPay, onUnmarkPay, onMarkMain, onMarkSport,
 }: StudentCardProps) {
   const attended = isPresentMain; // спорт — отдельно, не влияет на основное посещение
   const teamLevel = ((s.team_level as string) || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
@@ -174,21 +177,31 @@ export function StudentCard({
       {/* ── Нижняя панель кнопок ── */}
       <div className="flex border-t border-gray-100 relative z-10" style={{ minHeight: 44 }}>
 
-        {/* Справка */}
+        {/* Справка — цвет по статусу, клик открывает редактирование */}
         <button
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold text-gray-500 hover:bg-gray-50 transition-colors border-r border-gray-100">
+          onClick={onEditCert}
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition-colors border-r border-gray-100 active:opacity-70"
+          style={
+            !s.cert
+              ? { color: "hsl(0,72%,45%)", background: "hsl(0,72%,97%)" }
+              : certOk
+              ? { color: "hsl(142,55%,32%)", background: "hsl(142,50%,95%)" }
+              : { color: "hsl(38,90%,40%)", background: "hsl(38,90%,95%)" }
+          }>
           <Icon name="FileText" size={15} />
-          <span>Справка</span>
+          <span>{!s.cert ? "Нет справки" : certOk ? "Справка ✓" : "Справка !"}</span>
         </button>
 
-        {/* Оплата */}
+        {/* Оплата — яркая индикация, снятие доступно в течение 24ч */}
         <button
-          disabled={togglingPay || paid}
-          onClick={paid ? undefined : onMarkPay}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition-colors border-r border-gray-100"
-          style={{ color: paid ? "hsl(142,55%,35%)" : "#6b7280" }}>
-          <Icon name="CircleDollarSign" size={15} />
-          <span>{togglingPay ? "..." : "Оплата"}</span>
+          disabled={togglingPay || (paid && !canUnmarkPay)}
+          onClick={paid ? (canUnmarkPay ? onUnmarkPay : undefined) : onMarkPay}
+          className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold transition-colors border-r border-gray-100 disabled:opacity-70"
+          style={paid
+            ? { color: "hsl(142,60%,28%)", background: "hsl(142,55%,90%)" }
+            : { color: "hsl(0,72%,45%)", background: "hsl(0,72%,97%)" }}>
+          <Icon name={paid ? "CheckCircle2" : "CircleDollarSign"} size={15} />
+          <span>{togglingPay ? "..." : paid ? (canUnmarkPay ? "Оплачено (снять)" : "Оплачено ✓") : "Оплатить"}</span>
         </button>
 
         {/* Отметить / снять посещение — основная группа */}

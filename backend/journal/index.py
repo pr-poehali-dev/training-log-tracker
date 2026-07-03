@@ -122,7 +122,7 @@ def handler(event: dict, context) -> dict:
                 SELECT p.id, p.student_id, s.name, p.month, p.paid, p.paid_at, p.trainer_id,
                        s.fee, s.hall, s.hall2, s.grp
                 FROM {S}.payments p JOIN {S}.students s ON s.id=p.student_id
-                WHERE p.month=%s AND s.trainer_id=%s
+                WHERE p.month=%s AND s.trainer_id=%s AND s.archived=FALSE
                 ORDER BY s.name
             """, (month, trainer_filter))
             cols = [d[0] for d in cur.description]
@@ -130,7 +130,7 @@ def handler(event: dict, context) -> dict:
 
             cur.execute(f"""
                 SELECT s.id, s.name, s.fee, s.hall, s.hall2, s.grp FROM {S}.students s
-                WHERE s.trainer_id=%s AND s.id NOT IN (
+                WHERE s.trainer_id=%s AND s.archived=FALSE AND s.id NOT IN (
                     SELECT student_id FROM {S}.payments WHERE month=%s
                 )
                 ORDER BY s.name
@@ -163,13 +163,17 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет прав", 403)
 
-            # тренер не может снять уже поставленную оплату
+            # тренер может снять оплату только в течение 24 часов после отметки
             if role == "trainer":
-                cur.execute(f"SELECT paid FROM {S}.payments WHERE student_id=%s AND month=%s", (student_id, month))
+                cur.execute(f"SELECT paid, paid_at FROM {S}.payments WHERE student_id=%s AND month=%s", (student_id, month))
                 existing = cur.fetchone()
                 if existing and existing[0] and not paid:
-                    cur.close(); conn.close()
-                    return err("Нельзя снять уже поставленную оплату", 403)
+                    paid_at = existing[1]
+                    cur.execute("SELECT NOW() - %s", (paid_at,))
+                    elapsed = cur.fetchone()[0]
+                    if not paid_at or elapsed.total_seconds() > 24 * 3600:
+                        cur.close(); conn.close()
+                        return err("Снять оплату можно только в течение 24 часов после отметки", 403)
 
             cur.execute(f"""
                 INSERT INTO {S}.payments (student_id, trainer_id, month, paid, paid_at)

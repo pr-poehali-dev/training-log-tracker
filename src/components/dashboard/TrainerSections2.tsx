@@ -23,8 +23,9 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   const { data: sessions = [], isLoading } = useQuery({ queryKey: ["personal", month, user.id], queryFn: () => personalApi.byMonth(month) });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({ student_id: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" });
+  const [form, setForm] = useState({ student_name: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" });
   const [saving, setSaving] = useState(false);
+  const [formErr, setFormErr] = useState("");
   const [search, setSearch] = useState("");
   const [filterPaid, setFilterPaid] = useState<"" | "paid" | "unpaid">("");
   const [filterType, setFilterType] = useState("");
@@ -42,14 +43,20 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
 
   const totalRev = filteredSessions.filter(p => p.paid).reduce((s, p) => s + (p.cost as number), 0);
 
-  const openAdd = () => { setEditId(null); setForm({ student_id: allStudentsData[0]?.id?.toString() || "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" }); setShowForm(true); };
-  const openEdit = (p: Record<string, unknown>) => { setEditId(p.id as number); setForm({ student_id: String(p.student_id), date: p.date as string, duration: p.duration as number, cost: p.cost as number, paid: p.paid as boolean, note: p.note as string || "", session_type: (p.session_type as string) || "personal" }); setShowForm(true); };
+  const openAdd = () => { setEditId(null); setFormErr(""); setForm({ student_name: "", date: todayStr(), duration: 60, cost: 1500, paid: false, note: "", session_type: "personal" }); setShowForm(true); };
+  const openEdit = (p: Record<string, unknown>) => { setEditId(p.id as number); setFormErr(""); setForm({ student_name: (p.name as string) || "", date: p.date as string, duration: p.duration as number, cost: p.cost as number, paid: p.paid as boolean, note: p.note as string || "", session_type: (p.session_type as string) || "personal" }); setShowForm(true); };
 
   const save = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    const name = form.student_name.trim();
+    const match = allStudentsData.find(s => (s.name as string)?.toLowerCase() === name.toLowerCase());
+    if (!match) { setFormErr("Ученик с таким именем не найден. Проверьте написание — оно должно совпадать с карточкой ученика."); return; }
+    setFormErr("");
+    setSaving(true);
     try {
-      if (editId) { await personalApi.update(editId, { ...form, student_id: +form.student_id }); }
-      else { await personalApi.create({ ...form, student_id: +form.student_id }); }
+      const payload = { ...form, student_id: match.id as number };
+      if (editId) { await personalApi.update(editId, payload); }
+      else { await personalApi.create(payload); }
       qc.invalidateQueries({ queryKey: ["personal"] }); setShowForm(false);
     } finally { setSaving(false); }
   };
@@ -171,10 +178,19 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
       )}
 
       <BottomSheet open={showForm} onClose={() => setShowForm(false)} title={editId ? "Редактировать" : "Новая тренировка"}>
+        <datalist id="dl-personal-students">
+          {allStudentsData.map(s => <option key={s.id as number} value={s.name as string} />)}
+        </datalist>
         <form onSubmit={save} className="flex flex-col gap-3">
-          <select className={inputCls} value={form.student_id} onChange={e => setForm(p => ({ ...p, student_id: e.target.value }))}>
-            {(students as Record<string, unknown>[]).map(s => <option key={s.id as number} value={String(s.id)}>{s.name as string}</option>)}
-          </select>
+          <input
+            className={inputCls}
+            list="dl-personal-students"
+            placeholder="Имя ученика"
+            value={form.student_name}
+            onChange={e => { setForm(p => ({ ...p, student_name: e.target.value })); setFormErr(""); }}
+            autoComplete="off"
+          />
+          {formErr && <div className="text-xs text-red-500 -mt-2">{formErr}</div>}
           <div>
             <div className="text-[11px] text-gray-400 font-semibold mb-1">Тип тренировки</div>
             <select className={inputCls} value={form.session_type} onChange={e => setForm(p => ({ ...p, session_type: e.target.value }))}>
