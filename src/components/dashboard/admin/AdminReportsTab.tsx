@@ -50,6 +50,16 @@ export default function AdminReportsTab() {
   const toggleStat = (key: "students" | "paid" | "subs" | "pers" | "total") =>
     setOpenStat(prev => (prev === key ? null : key));
 
+  // Раскрытие строки тренера в общей таблице "По тренерам" — подгружает его учеников
+  const [expandedTrainerId, setExpandedTrainerId] = useState<number | null>(null);
+  const { data: expandedTrainerData, isLoading: expandedTrainerLoading } = useQuery({
+    queryKey: ["reports-admin-trainer-expand", month, expandedTrainerId],
+    queryFn: () => reportsApi.get(month, expandedTrainerId ?? undefined),
+    enabled: expandedTrainerId !== null,
+  });
+  const toggleExpandedTrainer = (id: number) =>
+    setExpandedTrainerId(prev => (prev === id ? null : id));
+
   const summary = data?.summary || {};
   const allStudents: Record<string, unknown>[] = data?.students || [];
   const allTrainerRows: Record<string, unknown>[] = data?.trainers || [];
@@ -161,7 +171,7 @@ export default function AdminReportsTab() {
   });
 
   const activeFilters = (filterHall ? 1 : 0) + (filterGrp ? 1 : 0) + (filterPaid ? 1 : 0) + (filterSport ? 1 : 0);
-  const resetFilters = () => { setFilterHall(""); setFilterGrp(""); setFilterPaid(""); setFilterSport(""); setSearch(""); setOpenStat(null); };
+  const resetFilters = () => { setFilterHall(""); setFilterGrp(""); setFilterPaid(""); setFilterSport(""); setSearch(""); setOpenStat(null); setExpandedTrainerId(null); };
 
   const maxRev = Math.max(...trainerRows.map(t => t.total_rev as number), 1);
 
@@ -321,23 +331,59 @@ export default function AdminReportsTab() {
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">По тренерам</span>
               </div>
               <div className="divide-y divide-gray-50">
-                {trainerRows.map(t => (
-                  <div key={t.id as number} className="px-3 py-3">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <div>
-                        <span className="text-sm font-bold text-gray-800">{t.full_name as string}</span>
-                        {t.hall && <span className="text-[11px] text-gray-400 ml-2">{t.hall as string}</span>}
-                      </div>
-                      <span className="font-oswald font-bold text-sm" style={{ color: "hsl(0,72%,40%)" }}>
-                        {(t.total_rev as number).toLocaleString("ru")} ₽
-                      </span>
+                {trainerRows.map(t => {
+                  const tid = t.id as number;
+                  const isOpen = expandedTrainerId === tid;
+                  const trainerStudents: Record<string, unknown>[] = isOpen ? (expandedTrainerData?.students || []) : [];
+                  return (
+                    <div key={tid}>
+                      <button onClick={() => toggleExpandedTrainer(tid)} className="w-full px-3 py-3 text-left active:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-gray-800">{t.full_name as string}</span>
+                            {t.hall && <span className="text-[11px] text-gray-400">{t.hall as string}</span>}
+                            <Icon name={isOpen ? "ChevronUp" : "ChevronDown"} size={12} className="text-gray-300" />
+                          </div>
+                          <span className="font-oswald font-bold text-sm" style={{ color: "hsl(0,72%,40%)" }}>
+                            {(t.total_rev as number).toLocaleString("ru")} ₽
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-400 mb-1.5">
+                          {t.student_count as number} уч. · абон. {(t.subs_rev as number).toLocaleString("ru")} ₽ · перс. {(t.pers_rev as number).toLocaleString("ru")} ₽
+                        </div>
+                        <MiniBar value={t.total_rev as number} max={maxRev} />
+                      </button>
+
+                      {isOpen && (
+                        <div className="bg-gray-50 border-t border-gray-100">
+                          {expandedTrainerLoading && (
+                            <div className="text-center py-4 text-xs text-gray-400">Загрузка...</div>
+                          )}
+                          {!expandedTrainerLoading && trainerStudents.length === 0 && (
+                            <div className="text-center py-4 text-xs text-gray-400">Нет учеников</div>
+                          )}
+                          {!expandedTrainerLoading && trainerStudents.map(s => {
+                            const total = (s.paid ? (s.fee as number) : 0) + Number(s.personal_revenue || 0);
+                            const subLine = [s.hall, s.hall2].filter(Boolean).join(" · ");
+                            return (
+                              <div key={s.id as number} className="px-3 py-2 flex items-center justify-between gap-2 border-b border-gray-100 last:border-0">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold text-gray-800 truncate">{s.name as string}</div>
+                                  <div className="text-[10px] text-gray-400 truncate">
+                                    {subLine}{s.paid ? " · ✓ оплачен" : " · ✗ не оплачен"}
+                                  </div>
+                                </div>
+                                <span className="text-xs font-bold flex-shrink-0" style={{ color: total > 0 ? "hsl(142,55%,32%)" : "#9ca3af" }}>
+                                  {total.toLocaleString("ru")} ₽
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-[11px] text-gray-400 mb-1.5">
-                      {t.student_count as number} уч. · абон. {(t.subs_rev as number).toLocaleString("ru")} ₽ · перс. {(t.pers_rev as number).toLocaleString("ru")} ₽
-                    </div>
-                    <MiniBar value={t.total_rev as number} max={maxRev} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
