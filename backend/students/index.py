@@ -63,6 +63,16 @@ def handler(event: dict, context) -> dict:
                     JOIN {S}.users u ON u.id = s.trainer_id
                     WHERE {archived_cond} ORDER BY u.full_name, s.name
                 """)
+        elif role == "supervisor":
+            trainer_filter = qs.get("trainer_id")
+            if not trainer_filter:
+                cur.close(); conn.close()
+                return err("Укажите trainer_id")
+            cur.execute(f"""
+                SELECT s.*, u.full_name as trainer_name FROM {S}.students s
+                JOIN {S}.users u ON u.id = s.trainer_id
+                WHERE s.trainer_id=%s AND {archived_cond} ORDER BY s.name
+            """, (trainer_filter,))
         else:
             cur.execute(f"""
                 SELECT s.*, u.full_name as trainer_name FROM {S}.students s
@@ -72,8 +82,19 @@ def handler(event: dict, context) -> dict:
 
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+        # Наблюдателю не показываем финансовые поля
+        if role == "supervisor":
+            hidden = ("fee", "annual_fee_number")
+            rows = [{k: v for k, v in row.items() if k not in hidden} for row in rows]
+
         cur.close(); conn.close()
         return ok(rows)
+
+    # Наблюдатель — только просмотр, изменения запрещены
+    if role == "supervisor":
+        cur.close(); conn.close()
+        return err("Наблюдатель может только просматривать данные", 403)
 
     # POST — создать ученика
     if method == "POST":

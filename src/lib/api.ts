@@ -49,6 +49,21 @@ export const authApi = {
 
   updateTrainer: (id: number, body: { full_name: string; hall?: string; schedule?: string; trainings_per_month?: number; password?: string; birthdate?: string }) =>
     req(`${URLS.auth}?action=update_trainer&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  trainersList: () =>
+    req(`${URLS.auth}?action=trainers_list`),
+
+  registerSupervisor: (body: { username: string; password: string; full_name: string }) =>
+    req(`${URLS.auth}?action=register_supervisor`, { method: "POST", body: JSON.stringify(body) }),
+
+  supervisors: () =>
+    req(`${URLS.auth}?action=supervisors`),
+
+  updateSupervisor: (id: number, body: { full_name: string; password?: string }) =>
+    req(`${URLS.auth}?action=update_supervisor&id=${id}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  deleteSupervisor: (id: number) =>
+    req(`${URLS.auth}?action=delete_supervisor&id=${id}`, { method: "DELETE" }),
 };
 
 // ── STUDENTS ──────────────────────────────────────────────────

@@ -27,6 +27,134 @@ const emptyEdit = (t: Record<string, unknown>): EditForm => ({
   birthdate: (t.birthdate as string) || "",
 });
 
+type SvEditForm = { full_name: string; password: string };
+
+function SupervisorsSection() {
+  const qc = useQueryClient();
+  const { data: supervisors = [], isLoading } = useQuery({ queryKey: ["supervisors"], queryFn: () => authApi.supervisors() });
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "", full_name: "" });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [deleting, setDeleting] = useState<Set<number>>(new Set());
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<SvEditForm>({ full_name: "", password: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErr, setEditErr] = useState("");
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault(); setErr(""); setSaving(true);
+    try {
+      await authApi.registerSupervisor(form);
+      qc.invalidateQueries({ queryKey: ["supervisors"] });
+      setShowForm(false);
+      setForm({ username: "", password: "", full_name: "" });
+    } catch (ex: unknown) { setErr(ex instanceof Error ? ex.message : "Ошибка"); }
+    finally { setSaving(false); }
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault(); setEditErr(""); setEditSaving(true);
+    try {
+      await authApi.updateSupervisor(editId!, editForm);
+      qc.invalidateQueries({ queryKey: ["supervisors"] });
+      setEditId(null);
+    } catch (ex: unknown) { setEditErr(ex instanceof Error ? ex.message : "Ошибка"); }
+    finally { setEditSaving(false); }
+  };
+
+  const del = async (id: number, name: string) => {
+    if (!window.confirm(`Удалить наблюдателя "${name}"?`)) return;
+    setDeleting(prev => new Set([...prev, id]));
+    try { await authApi.deleteSupervisor(id); qc.invalidateQueries({ queryKey: ["supervisors"] }); }
+    finally { setDeleting(prev => { const n = new Set(prev); n.delete(id); return n; }); }
+  };
+
+  const svList = supervisors as Record<string, unknown>[];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-oswald text-base font-bold tracking-wide text-gray-700">
+          НАБЛЮДАТЕЛИ <span className="text-gray-400 font-golos font-normal text-sm">({svList.length})</span>
+        </h2>
+        <PrimaryBtn onClick={() => setShowForm(!showForm)}><Icon name="Plus" size={15} className="inline mr-1" />Добавить</PrimaryBtn>
+      </div>
+      <p className="text-xs text-gray-400 -mt-1">Видит журнал посещаемости всех тренеров, но не видит оплаты и финансовые отчёты.</p>
+
+      {showForm && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-oswald text-base font-bold mb-3" style={{ color: "hsl(0,72%,40%)" }}>Новый наблюдатель</h3>
+          <form onSubmit={save} className="flex flex-col gap-3">
+            <input className={inputCls} placeholder="ФИО *" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-2">
+              <input className={inputCls} placeholder="Логин *" value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} required />
+              <input className={inputCls} type="password" placeholder="Пароль *" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
+            </div>
+            {err && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</div>}
+            <div className="flex gap-2">
+              <OutlineBtn onClick={() => setShowForm(false)}>Отмена</OutlineBtn>
+              <PrimaryBtn type="submit" disabled={saving}>{saving ? "Сохранение..." : "Создать"}</PrimaryBtn>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isLoading ? <Loading /> : (
+        <div className="flex flex-col gap-2">
+          {svList.map(sv => {
+            const sid = sv.id as number;
+            return (
+              <div key={sid} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 p-3 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-oswald font-bold text-sm flex-shrink-0"
+                  style={{ background: "hsl(210,60%,96%)", color: "hsl(210,60%,42%)" }}>
+                  {ini(sv.full_name as string)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {editId === sid ? (
+                    <form onSubmit={saveEdit} className="flex flex-col gap-2">
+                      <input className={inputCls} placeholder="ФИО *" value={editForm.full_name} onChange={e => setEditForm(p => ({ ...p, full_name: e.target.value }))} required />
+                      <input className={inputCls} type="password" placeholder="Новый пароль (необязательно)" value={editForm.password} onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))} />
+                      {editErr && <div className="text-xs text-red-500 bg-red-50 rounded px-2 py-1">{editErr}</div>}
+                      <div className="flex gap-2">
+                        <OutlineBtn onClick={() => setEditId(null)}>Отмена</OutlineBtn>
+                        <PrimaryBtn type="submit" disabled={editSaving}>{editSaving ? "..." : "Сохранить"}</PrimaryBtn>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="font-bold text-[13px] text-gray-900">{sv.full_name as string}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">@{sv.username as string}</div>
+                    </>
+                  )}
+                </div>
+                {editId !== sid && (
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button onClick={() => { setEditId(sid); setEditForm({ full_name: sv.full_name as string, password: "" }); setEditErr(""); }}
+                      className="text-gray-300 hover:text-blue-400 transition-colors p-1">
+                      <Icon name="Pencil" size={15} />
+                    </button>
+                    <button onClick={() => del(sid, sv.full_name as string)} disabled={deleting.has(sid)}
+                      className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 p-1">
+                      <Icon name="Trash2" size={15} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {svList.length === 0 && (
+            <div className="text-center py-6 text-gray-400 text-sm">
+              <Icon name="Eye" size={32} className="mx-auto mb-2 opacity-20" />
+              Нет наблюдателей
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminTrainersTab({ user }: { user: AppUser }) {
   const qc = useQueryClient();
   const { data: trainers = [], isLoading } = useQuery({ queryKey: ["trainers"], queryFn: () => authApi.trainers() });
@@ -273,6 +401,10 @@ export default function AdminTrainersTab({ user }: { user: AppUser }) {
             <p>{(trainers as []).length === 0 ? "Нет тренеров" : "Ничего не найдено"}</p>
           </div>
         )}
+      </div>
+
+      <div className="border-t border-gray-100 pt-4 mt-1">
+        <SupervisorsSection />
       </div>
     </div>
   );

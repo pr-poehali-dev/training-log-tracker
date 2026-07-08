@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/ui/icon";
 import TrainerDashboard from "@/components/dashboard/TrainerDashboard";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
+import SupervisorDashboard from "@/components/dashboard/SupervisorDashboard";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import OfflineBanner from "@/components/shared/OfflineBanner";
 import InstallBanner from "@/components/shared/InstallBanner";
@@ -10,7 +11,7 @@ import NotificationBell from "@/components/shared/NotificationBell";
 export interface AppUser {
   id: number;
   username: string;
-  role: "admin" | "trainer";
+  role: "admin" | "trainer" | "supervisor";
   full_name: string;
   hall?: string;
   schedule?: string;
@@ -120,7 +121,7 @@ export default function Index() {
             {/* Role badge */}
             <span className="flex-shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
               style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}>
-              {user.role === "admin" ? "Админ" : "Тренер"}
+              {user.role === "admin" ? "Админ" : user.role === "supervisor" ? "Наблюдатель" : "Тренер"}
             </span>
           </div>
         </header>
@@ -132,6 +133,8 @@ export default function Index() {
         <main className="flex-1 w-full md:max-w-none max-w-2xl mx-auto">
           {user.role === "admin"
             ? <AdminDashboard user={user} />
+            : user.role === "supervisor"
+            ? <SupervisorDashboard user={user} />
             : <TrainerDashboard user={user} />}
         </main>
 

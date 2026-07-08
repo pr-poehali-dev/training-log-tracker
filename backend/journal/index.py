@@ -45,13 +45,21 @@ def handler(event: dict, context) -> dict:
         return err("Пользователь не найден", 401)
     uid, role, can_edit_journal = user
 
+    # Наблюдатель видит только посещаемость — все финансовые разделы закрыты
+    if role == "supervisor" and section in ("payments", "personal", "expenses", "notes"):
+        cur.close(); conn.close()
+        return err("Нет доступа к этому разделу", 403)
+
     # ──── ATTENDANCE ────────────────────────────────────────────
     if section == "attendance":
 
         if method == "GET":
             month = qs.get("month")
             date  = qs.get("date")
-            trainer_filter = qs.get("trainer_id") if role == "admin" else uid
+            trainer_filter = qs.get("trainer_id") if role in ("admin", "supervisor") else uid
+            if role == "supervisor" and not trainer_filter:
+                cur.close(); conn.close()
+                return err("Укажите trainer_id")
 
             if date:
                 cur.execute(f"""
@@ -79,6 +87,9 @@ def handler(event: dict, context) -> dict:
             return ok(rows)
 
         if method == "POST":
+            if role == "supervisor":
+                cur.close(); conn.close()
+                return err("Наблюдатель не может редактировать журнал", 403)
             if role == "trainer" and not can_edit_journal:
                 cur.close(); conn.close()
                 return err("Нет разрешения на редактирование журнала", 403)

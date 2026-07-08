@@ -40,6 +40,10 @@ def handler(event: dict, context) -> dict:
         return err("Пользователь не найден", 401)
     uid, role = user
 
+    if role == "supervisor":
+        cur.close(); conn.close()
+        return err("Нет доступа к финансовым отчётам", 403)
+
     month = qs.get("month")
     if not month:
         cur.close(); conn.close()

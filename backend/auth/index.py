@@ -20,7 +20,7 @@ def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
 def handler(event: dict, context) -> dict:
-    """Auth: action=login|register|trainers|toggle_permission|update_trainer через ?action=..."""
+    """Auth: action=login|register|trainers|supervisors|toggle_permission|update_trainer|update_supervisor|delete_trainer|delete_supervisor через ?action=..."""
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
@@ -82,6 +82,109 @@ def handler(event: dict, context) -> dict:
         conn.commit()
         cur.close(); conn.close()
         return ok({"id": new_id, "username": username, "role": "trainer", "full_name": full_name, "hall": hall, "schedule": schedule, "can_edit_journal": True, "trainings_per_month": trainings_per_month})
+
+    # POST ?action=register_supervisor  (только admin) — наблюдатель: видит журнал посещаемости, без финансов
+    if method == "POST" and action == "register_supervisor":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        username  = body.get("username", "").strip()
+        password  = body.get("password", "").strip()
+        full_name = body.get("full_name", "").strip()
+        if not username or not password or not full_name:
+            cur.close(); conn.close()
+            return err("Заполните все поля")
+        cur.execute(f"SELECT id FROM {S}.users WHERE username=%s", (username,))
+        if cur.fetchone():
+            cur.close(); conn.close()
+            return err("Логин уже занят")
+        cur.execute(
+            f"INSERT INTO {S}.users (username, password, role, full_name, can_edit_journal) VALUES (%s,%s,'supervisor',%s,FALSE) RETURNING id",
+            (username, password, full_name)
+        )
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"id": new_id, "username": username, "role": "supervisor", "full_name": full_name})
+
+    # GET ?action=supervisors  (admin only)
+    if method == "GET" and action == "supervisors":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        cur.execute(f"""
+            SELECT id, username, role, full_name, created_at
+            FROM {S}.users WHERE role='supervisor' ORDER BY full_name
+        """)
+        cols = [d[0] for d in cur.description]
+        supervisors = [dict(zip(cols, r)) for r in cur.fetchall()]
+        for sv in supervisors:
+            sv["created_at"] = str(sv["created_at"])
+        cur.close(); conn.close()
+        return ok(supervisors)
+
+    # PUT ?action=update_supervisor&id=X  (admin only)
+    if method == "PUT" and action == "update_supervisor":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        tid = qs.get("id")
+        if not tid:
+            cur.close(); conn.close()
+            return err("Нет id")
+        full_name = body.get("full_name", "").strip()
+        password  = body.get("password", "").strip()
+        if not full_name:
+            cur.close(); conn.close()
+            return err("ФИО обязательно")
+        if password:
+            cur.execute(
+                f"UPDATE {S}.users SET full_name=%s, password=%s WHERE id=%s AND role='supervisor'",
+                (full_name, password, tid)
+            )
+        else:
+            cur.execute(
+                f"UPDATE {S}.users SET full_name=%s WHERE id=%s AND role='supervisor'",
+                (full_name, tid)
+            )
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"message": "Обновлено"})
+
+    # DELETE ?action=delete_supervisor&id=X  (admin only)
+    if method == "DELETE" and action == "delete_supervisor":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] != "admin":
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        tid = qs.get("id")
+        if not tid:
+            cur.close(); conn.close()
+            return err("Нет id")
+        cur.execute(f"DELETE FROM {S}.users WHERE id=%s AND role='supervisor'", (tid,))
+        conn.commit()
+        cur.close(); conn.close()
+        return ok({"message": "Наблюдатель удалён"})
+
+    # GET ?action=trainers_list  (admin или supervisor) — без финансов, только для выбора тренера в списках
+    if method == "GET" and action == "trainers_list":
+        cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
+        row = cur.fetchone()
+        if not row or row[0] not in ("admin", "supervisor"):
+            cur.close(); conn.close()
+            return err("Нет прав", 403)
+        cur.execute(f"SELECT id, full_name, hall, schedule FROM {S}.users WHERE role='trainer' ORDER BY full_name")
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return ok(rows)
 
     # GET ?action=trainers  (admin only)
     if method == "GET" and action == "trainers":
