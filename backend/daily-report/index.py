@@ -9,7 +9,10 @@ CORS = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-User-Id",
 }
-VAPID_PRIVATE = os.environ.get("VAPID_PRIVATE_KEY", "")
+# Используем ту же встроенную пару VAPID-ключей, что и backend/push/index.py —
+# секрет VAPID_PRIVATE_KEY в окружении повреждён, а публичный ключ этой пары
+# уже роздан всем подписчикам (браузерам), поэтому именно она рабочая.
+VAPID_PRIVATE = "Bw9kZTuTwsx7pltSX9SpFQSx2j5IgT1MaDSMO8CobP0"
 VAPID_SUBJECT = "mailto:admin@iko-journal.ru"
 
 
