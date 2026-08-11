@@ -9,6 +9,7 @@ export type FormState = {
   birthdate: string; insurance: boolean; insurance_to: string;
   has_sport: boolean; sport_schedule: string;
   team_level: TeamLevel;
+  vk_id: string;
 };
 
 export function addMonths(dateStr: string, months: number): string {
@@ -46,6 +47,7 @@ export function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitL
         <input className={inputCls} placeholder="Время группы" list={`dl-schedules${listSuffix}`} value={form.schedule} onChange={f("schedule")} />
         <input className={inputCls} placeholder="Телефон" value={form.phone} onChange={f("phone")} />
         <input className={inputCls} placeholder="IKO карта" value={form.iko} onChange={f("iko")} />
+        <input className={inputCls} placeholder="VK ID (для напоминаний об оплате)" value={form.vk_id} onChange={f("vk_id")} />
         <input className={inputCls} placeholder="Уровень / пояс" value={form.lvl} onChange={f("lvl")} />
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Дата рождения</label>

@@ -8,6 +8,7 @@ const URLS = {
   notifications:  "https://functions.poehali.dev/8bafc972-b60d-47d5-af19-dd9811d522ae",
   push:           "https://functions.poehali.dev/22d93ed7-ba75-44de-9235-cb0d4aa13729",
   importStudents: "https://functions.poehali.dev/64bea226-4779-4ac9-824c-b5904bff229a",
+  vkRemind:       "https://functions.poehali.dev/0d9ef094-a052-44f0-bde7-c1b998bb4276",
 };
 
 function getUser() {
@@ -205,6 +206,12 @@ export const pushApi = {
   unsubscribe: (endpoint: string) =>
     req(`${URLS.push}?action=unsubscribe`, { method: "POST", body: JSON.stringify({ endpoint }) }),
   test: () => req(`${URLS.push}?action=test`, { method: "POST", body: "{}" }),
+};
+
+// ── VK REMIND ────────────────────────────────────────────────
+export const vkRemindApi = {
+  runNow: (): Promise<{ month: string; date: string; total_debtors_with_vk: number; sent: number; failed: number; skipped?: boolean }> =>
+    req(`${URLS.vkRemind}?action=run_now`, { method: "POST", body: "{}" }),
 };
 
 // ── EXPENSES ───────────────────────────────────────────────────

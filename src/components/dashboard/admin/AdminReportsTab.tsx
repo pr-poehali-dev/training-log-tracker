@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { authApi, reportsApi, expensesApi } from "@/lib/api";
+import { authApi, reportsApi, expensesApi, vkRemindApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 
 const monStr = () => new Date().toISOString().slice(0, 7);
@@ -51,6 +51,17 @@ export default function AdminReportsTab() {
     queryFn: () => expensesApi.byMonth(month, trainerId ?? undefined),
     enabled: showExpenses,
   });
+
+  const [sendingVk, setSendingVk] = useState(false);
+  const [vkResult, setVkResult] = useState<{ sent: number; failed: number; total_debtors_with_vk: number; skipped?: boolean } | null>(null);
+  const sendVkReminders = async () => {
+    setSendingVk(true);
+    setVkResult(null);
+    try {
+      const res = await vkRemindApi.runNow();
+      setVkResult(res);
+    } finally { setSendingVk(false); }
+  };
 
   const [filterTrainerHall, setFilterTrainerHall] = useState("");
   const [openStat, setOpenStat] = useState<"students" | "paid" | "subs" | "pers" | "total" | null>(null);
@@ -329,6 +340,30 @@ export default function AdminReportsTab() {
               )}
             </>
           )}
+
+          {/* ── Напоминания должникам через VK ── */}
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Icon name="MessageCircle" size={14} className="text-gray-400" />
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Напоминания об оплате (VK)</span>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-2.5">
+              Автоматически отправляются в последний день месяца всем должникам, у которых указан VK ID. Можно запустить вручную для проверки.
+            </p>
+            <button onClick={sendVkReminders} disabled={sendingVk}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:opacity-80 disabled:opacity-60"
+              style={{ background: "hsl(217,80%,50%)" }}>
+              <Icon name="Send" size={15} />
+              {sendingVk ? "Отправляю..." : "Отправить напоминания сейчас"}
+            </button>
+            {vkResult && (
+              <div className="mt-2.5 px-3 py-2 rounded-xl text-xs" style={{ background: "hsl(217,90%,96%)", color: "hsl(217,80%,35%)" }}>
+                {vkResult.skipped
+                  ? "Сегодня не последний день месяца — рассылка запускается только вручную."
+                  : `Должников с VK ID: ${vkResult.total_debtors_with_vk} · отправлено: ${vkResult.sent}${vkResult.failed ? ` · ошибок: ${vkResult.failed}` : ""}`}
+              </div>
+            )}
+          </div>
 
           {/* ── Расходы по тренерам ── */}
           <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
