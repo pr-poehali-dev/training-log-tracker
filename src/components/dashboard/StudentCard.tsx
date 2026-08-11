@@ -170,15 +170,19 @@ export function StudentCard({
         </div>
 
         {/* Карандаш + отпуск + три точки */}
-        <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+        <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
           <button onClick={onEdit}
-            className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors">
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-sm"
+            style={{ background: "hsl(217,90%,95%)", color: "hsl(217,80%,45%)" }}
+            title="Редактировать">
             <Icon name="Pencil" size={15} />
           </button>
           {onLeave && (
             <button onClick={onLeave}
-              className="w-7 h-7 flex items-center justify-center transition-colors"
-              style={{ color: onLeaveNow ? "hsl(38,80%,45%)" : "#d1d5db" }}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-sm"
+              style={onLeaveNow
+                ? { background: "hsl(38,80%,45%)", color: "#fff" }
+                : { background: "hsl(38,90%,93%)", color: "hsl(38,80%,40%)" }}
               title="Отпуск / больничный">
               <Icon name="Palmtree" size={15} />
             </button>
