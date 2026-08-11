@@ -221,7 +221,7 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return ok({"message": "Ученик перемещён в архив"})
 
-    # PATCH — массовое переименование группы (?action=rename_group)
+    # PATCH — массовое переименование группы (?action=rename_group) или статус отпуска (?action=set_leave)
     if method == "PATCH":
         action = qs.get("action")
         if action == "rename_group":
@@ -238,6 +238,30 @@ def handler(event: dict, context) -> dict:
             conn.commit()
             cur.close(); conn.close()
             return ok({"updated": count, "message": f"Переименовано {count} учеников"})
+
+        if action == "set_leave":
+            sid = qs.get("id")
+            if not sid:
+                cur.close(); conn.close()
+                return err("Нет id")
+            cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s", (sid,))
+            row = cur.fetchone()
+            if not row:
+                cur.close(); conn.close()
+                return err("Ученик не найден", 404)
+            if role != "admin" and str(row[0]) != str(uid):
+                cur.close(); conn.close()
+                return err("Нет прав", 403)
+            on_leave = bool(body.get("on_leave", False))
+            leave_reason = (body.get("leave_reason") or "").strip() or None
+            leave_until = body.get("leave_until") or None
+            cur.execute(f"""
+                UPDATE {S}.students SET on_leave=%s, leave_reason=%s, leave_until=%s
+                WHERE id=%s
+            """, (on_leave, leave_reason if on_leave else None, leave_until if on_leave else None, sid))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Отпуск включён" if on_leave else "Отпуск отменён"})
 
     cur.close(); conn.close()
     return err("Method not allowed", 405)

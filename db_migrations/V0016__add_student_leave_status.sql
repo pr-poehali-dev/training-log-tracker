@@ -1,0 +1,4 @@
+ALTER TABLE t_p10685360_training_log_tracker.students
+  ADD COLUMN IF NOT EXISTS on_leave BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS leave_reason TEXT,
+  ADD COLUMN IF NOT EXISTS leave_until DATE;

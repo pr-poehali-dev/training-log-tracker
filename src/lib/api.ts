@@ -90,6 +90,9 @@ export const studentsApi = {
 
   renameGroup: (oldGrp: string, newGrp: string) =>
     req(`${URLS.students}?action=rename_group`, { method: "PATCH", body: JSON.stringify({ old_grp: oldGrp, new_grp: newGrp }) }),
+
+  setLeave: (id: number, body: { on_leave: boolean; leave_reason?: string; leave_until?: string }) =>
+    req(`${URLS.students}?action=set_leave&id=${id}`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 // ── IMPORT STUDENTS ───────────────────────────────────────────
@@ -128,6 +131,9 @@ export const attendanceApi = {
       [{ key: `att_month_${month}_me`, fn: patchFn }],
     );
   },
+
+  markAll: (body: { student_ids: number[]; date: string; present: boolean; group_type?: string }) =>
+    req(`${URLS.journal}?section=attendance`, { method: "POST", body: JSON.stringify({ ...body, group_type: body.group_type ?? "main" }) }),
 };
 
 // ── PAYMENTS ──────────────────────────────────────────────────
@@ -203,8 +209,8 @@ export const pushApi = {
 
 // ── EXPENSES ───────────────────────────────────────────────────
 export const expensesApi = {
-  byMonth: (month: string) =>
-    req(`${URLS.journal}?section=expenses&month=${month}`),
+  byMonth: (month: string, trainerId?: number) =>
+    req(`${URLS.journal}?section=expenses&month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`),
 
   create: (body: { title: string; amount: number; date: string; category?: string }) =>
     req(`${URLS.journal}?section=expenses`, { method: "POST", body: JSON.stringify(body) }),

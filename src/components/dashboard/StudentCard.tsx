@@ -22,6 +22,7 @@ interface StudentCardProps {
   onUnmarkPay: () => void;
   onMarkMain: () => void;
   onMarkSport: () => void;
+  onLeave?: () => void;
 }
 
 // Конфиг канки (цветная полоска) по уровню состава
@@ -35,12 +36,13 @@ export function StudentCard({
   s, paid, canUnmarkPay, isPresentMain, isPresentSport,
   togglingPay, togglingMain, togglingSport,
   canEdit, certOk, insOk, birthday, newStudent,
-  onEdit, onArchive, onEditCert, onMarkPay, onUnmarkPay, onMarkMain, onMarkSport,
+  onEdit, onArchive, onEditCert, onMarkPay, onUnmarkPay, onMarkMain, onMarkSport, onLeave,
 }: StudentCardProps) {
   const attended = isPresentMain; // спорт — отдельно, не влияет на основное посещение
   const teamLevel = ((s.team_level as string) || "regular") as keyof typeof TEAM_LEVEL_CONFIG;
   const cfg = TEAM_LEVEL_CONFIG[teamLevel] ?? TEAM_LEVEL_CONFIG.regular;
   const hasLevel = teamLevel !== "regular";
+  const onLeaveNow = Boolean(s.on_leave);
 
   // Зал + группа — строка под именем
   const hallLine = [s.hall, s.hall2].filter(Boolean).join(" · ");
@@ -105,6 +107,12 @@ export function StudentCard({
                 {cfg.label}
               </span>
             )}
+            {onLeaveNow && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-none flex items-center gap-0.5"
+                style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>
+                🏖 Отпуск{s.leave_until ? ` до ${(s.leave_until as string).slice(8,10)}.${(s.leave_until as string).slice(5,7)}` : ""}
+              </span>
+            )}
             {birthday && <span className="text-xs">🎉</span>}
           </div>
 
@@ -161,12 +169,20 @@ export function StudentCard({
           </div>
         </div>
 
-        {/* Карандаш + три точки */}
+        {/* Карандаш + отпуск + три точки */}
         <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
           <button onClick={onEdit}
             className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-colors">
             <Icon name="Pencil" size={15} />
           </button>
+          {onLeave && (
+            <button onClick={onLeave}
+              className="w-7 h-7 flex items-center justify-center transition-colors"
+              style={{ color: onLeaveNow ? "hsl(38,80%,45%)" : "#d1d5db" }}
+              title="Отпуск / больничный">
+              <Icon name="Palmtree" size={15} />
+            </button>
+          )}
           <button onClick={onArchive}
             className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors">
             <Icon name="MoreVertical" size={15} />

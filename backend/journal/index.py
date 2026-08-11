@@ -94,12 +94,36 @@ def handler(event: dict, context) -> dict:
                 cur.close(); conn.close()
                 return err("Нет разрешения на редактирование журнала", 403)
 
-            student_id = body.get("student_id")
             date       = body.get("date")
             present    = bool(body.get("present", True))
             group_type = body.get("group_type", "main")
             if group_type not in ("main", "sport"):
                 group_type = "main"
+
+            # Массовая отметка — student_ids: [1,2,3]
+            student_ids = body.get("student_ids")
+            if student_ids:
+                if not date:
+                    cur.close(); conn.close()
+                    return err("Нет date")
+                ids = [int(x) for x in student_ids]
+                cur.execute(f"SELECT id, trainer_id FROM {S}.students WHERE id = ANY(%s)", (ids,))
+                found = cur.fetchall()
+                allowed_ids = [r[0] for r in found if role == "admin" or str(r[1]) == str(uid)]
+                if not allowed_ids:
+                    cur.close(); conn.close()
+                    return err("Нет прав", 403)
+                for sid in allowed_ids:
+                    cur.execute(f"""
+                        INSERT INTO {S}.attendance (student_id, trainer_id, date, present, group_type)
+                        VALUES (%s,%s,%s,%s,%s)
+                        ON CONFLICT (student_id, date, group_type) DO UPDATE SET present=EXCLUDED.present
+                    """, (sid, uid, date, present, group_type))
+                conn.commit()
+                cur.close(); conn.close()
+                return ok({"message": f"Отмечено: {len(allowed_ids)}", "count": len(allowed_ids)})
+
+            student_id = body.get("student_id")
 
             if not student_id or not date:
                 cur.close(); conn.close()
@@ -133,7 +157,7 @@ def handler(event: dict, context) -> dict:
                 SELECT p.id, p.student_id, s.name, p.month, p.paid, p.paid_at, p.trainer_id,
                        s.fee, s.hall, s.hall2, s.grp
                 FROM {S}.payments p JOIN {S}.students s ON s.id=p.student_id
-                WHERE p.month=%s AND s.trainer_id=%s AND s.archived=FALSE
+                WHERE p.month=%s AND s.trainer_id=%s AND s.archived=FALSE AND s.on_leave=FALSE
                 ORDER BY s.name
             """, (month, trainer_filter))
             cols = [d[0] for d in cur.description]
@@ -141,7 +165,7 @@ def handler(event: dict, context) -> dict:
 
             cur.execute(f"""
                 SELECT s.id, s.name, s.fee, s.hall, s.hall2, s.grp FROM {S}.students s
-                WHERE s.trainer_id=%s AND s.archived=FALSE AND s.id NOT IN (
+                WHERE s.trainer_id=%s AND s.archived=FALSE AND s.on_leave=FALSE AND s.id NOT IN (
                     SELECT student_id FROM {S}.payments WHERE month=%s
                 )
                 ORDER BY s.name
@@ -338,6 +362,20 @@ def handler(event: dict, context) -> dict:
             if not month:
                 cur.close(); conn.close()
                 return err("Укажите month")
+
+            # Админ без указания trainer_id — сводка расходов по всем тренерам
+            if role == "admin" and not trainer_filter:
+                cur.execute(f"""
+                    SELECT e.id, e.trainer_id, u.full_name as trainer_name, e.title, e.amount, e.date, e.category, e.created_at
+                    FROM {S}.expenses e JOIN {S}.users u ON u.id=e.trainer_id
+                    WHERE to_char(e.date,'YYYY-MM')=%s
+                    ORDER BY u.full_name, e.date DESC, e.id DESC
+                """, (month,))
+                cols = [d[0] for d in cur.description]
+                rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+                cur.close(); conn.close()
+                return ok(rows)
+
             cur.execute(f"""
                 SELECT id, trainer_id, title, amount, date, category, created_at
                 FROM {S}.expenses

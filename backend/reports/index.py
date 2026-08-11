@@ -60,6 +60,7 @@ def handler(event: dict, context) -> dict:
                 s.id, s.name, s.hall, s.hall2, s.grp, s.fee, s.schedule,
                 s.birthdate, s.insurance, s.insurance_to, s.cert_to, s.created_at,
                 s.has_sport, s.sport_schedule, s.team_level, s.phone,
+                s.on_leave, s.leave_reason, s.leave_until,
                 COALESCE(p.paid, FALSE) as paid,
                 COUNT(DISTINCT CASE WHEN a.present AND (COALESCE(a.group_type,'main')='main') THEN a.date END) as present_count,
                 COUNT(DISTINCT CASE WHEN COALESCE(a.group_type,'main')='main' THEN a.date END) as total_days,
@@ -86,16 +87,19 @@ def handler(event: dict, context) -> dict:
         for r in cur.fetchall():
             row = dict(zip(cols, r))
             row["paid"] = bool(row["paid"])
+            row["on_leave"] = bool(row["on_leave"])
             tpm = int(row.get("trainings_per_month") or 13)
             present = int(row["present_count"])
             row["attendance_rate"] = min(100, round(present / tpm * 100)) if tpm else 0
             row["trainings_per_month"] = tpm
             students.append(row)
 
-    subs_revenue = sum(s["fee"] for s in students if s["paid"])
+    # Ученики "в отпуске" не учитываются в финансовом отчёте (не считаются должниками)
+    billable_students = [s for s in students if not s["on_leave"]]
+    subs_revenue = sum(s["fee"] for s in billable_students if s["paid"])
     pers_revenue = sum(int(s["personal_revenue"]) for s in students)
-    total_students = len(students)
-    paid_count = sum(1 for s in students if s["paid"])
+    total_students = len(billable_students)
+    paid_count = sum(1 for s in billable_students if s["paid"])
 
     summary = {
         "month": month,
@@ -121,7 +125,7 @@ def handler(event: dict, context) -> dict:
                           JOIN {S}.students s2 ON s2.id=ps2.student_id
                           WHERE s2.trainer_id=u.id AND ps2.paid AND to_char(ps2.date,'YYYY-MM')=%s), 0) as pers_rev
             FROM {S}.users u
-            LEFT JOIN {S}.students s ON s.trainer_id=u.id AND s.archived=FALSE
+            LEFT JOIN {S}.students s ON s.trainer_id=u.id AND s.archived=FALSE AND s.on_leave=FALSE
             LEFT JOIN {S}.payments p ON p.student_id=s.id AND p.month=%s
             WHERE u.role='trainer'
             GROUP BY u.id, u.full_name, u.hall

@@ -25,6 +25,7 @@ export default function AdminDataTab() {
   const [filterPaid, setFilterPaid] = useState<"" | "paid" | "unpaid">("");
   const [filterBirthday, setFilterBirthday] = useState(false);
   const [filterSport, setFilterSport] = useState<"" | "main" | "sport">("");
+  const [showLeave, setShowLeave] = useState(false);
   const qc = useQueryClient();
 
   const today    = todayStr();
@@ -69,6 +70,16 @@ export default function AdminDataTab() {
     try { await attendanceApi.mark({ student_id: sid, date, present: !current, group_type: groupType }); qc.invalidateQueries({ queryKey: ["att-admin"] }); }
     finally { setToggling(prev => { const n = new Set(prev); n.delete(k); return n; }); }
   };
+
+  const [markingAll, setMarkingAll] = useState(false);
+  const markAllAtt = async (ids: number[]) => {
+    if (ids.length === 0) return;
+    setMarkingAll(true);
+    try {
+      await attendanceApi.markAll({ student_ids: ids, date, present: true, group_type: "main" });
+      qc.invalidateQueries({ queryKey: ["att-admin"] });
+    } finally { setMarkingAll(false); }
+  };
   const togglePay = async (sid: number, current: boolean) => {
     const k = `p${sid}`;
     setToggling(prev => new Set([...prev, k]));
@@ -81,6 +92,8 @@ export default function AdminDataTab() {
   const grps    = [...new Set(allStudents.map(s => s.grp as string).filter(Boolean))];
   const hasSport = allStudents.some(s => s.has_sport);
 
+  const leaveCount = allStudents.filter(s => s.on_leave).length;
+
   const filtered = allStudents.filter(s => {
     const sid = s.id as number;
     if (search && !(s.name as string)?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -91,6 +104,7 @@ export default function AdminDataTab() {
     if (filterBirthday && !isBirthday(s))         return false;
     if (filterSport === "sport" && !s.has_sport)  return false;
     if (filterSport === "main"  &&  s.has_sport)  return false;
+    if (!showLeave && s.on_leave) return false;
     return true;
   });
 
@@ -232,6 +246,12 @@ export default function AdminDataTab() {
               activeStyle={{ background: "hsl(38,90%,50%)", color: "#fff" }}>
               🎂 ДР сегодня
             </Chip>
+            {leaveCount > 0 && (
+              <Chip active={showLeave} onClick={() => setShowLeave(v => !v)}
+                activeStyle={{ background: "hsl(38,80%,45%)", color: "#fff" }}>
+                🏖 {showLeave ? "Скрыть в отпуске" : `В отпуске (${leaveCount})`}
+              </Chip>
+            )}
             {(activeFilters > 0 || search) && (
               <button onClick={resetFilters}
                 className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors px-2">
@@ -239,6 +259,17 @@ export default function AdminDataTab() {
               </button>
             )}
           </div>
+
+          {/* Отметить всех присутствующими (видимых сейчас, на выбранную дату) */}
+          {filtered.length > 0 && filtered.some(s => !isPresent(s.id as number)) && (
+            <button onClick={() => markAllAtt(filtered.filter(s => !isPresent(s.id as number)).map(s => s.id as number))}
+              disabled={markingAll}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:opacity-80 disabled:opacity-60"
+              style={{ background: "hsl(142,55%,38%)" }}>
+              <Icon name="CheckCheck" size={16} />
+              {markingAll ? "Отмечаю..." : `Отметить всех присутствующими (${filtered.filter(s => !isPresent(s.id as number)).length})`}
+            </button>
+          )}
 
           {/* Список учеников */}
           <div className="flex flex-col gap-2">
@@ -268,6 +299,7 @@ export default function AdminDataTab() {
                         {birthday && <span className="text-xs">🎉</span>}
                         {here && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,30%)" }}>✓ Присутствует</span>}
                         {paid && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,30%)" }}>₽ Оплачен</span>}
+                        {Boolean(s.on_leave) && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>🏖 Отпуск</span>}
                       </div>
                       <div className="text-[11px] text-gray-400 mt-0.5 font-medium">
                         {[s.hall, s.hall2, s.grp].filter(Boolean).join(" · ")}

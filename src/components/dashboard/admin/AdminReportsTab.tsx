@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { authApi, reportsApi } from "@/lib/api";
+import { authApi, reportsApi, expensesApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 
 const monStr = () => new Date().toISOString().slice(0, 7);
@@ -43,6 +43,13 @@ export default function AdminReportsTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["reports-admin", month, trainerId],
     queryFn: () => reportsApi.get(month, trainerId ?? undefined),
+  });
+
+  const [showExpenses, setShowExpenses] = useState(false);
+  const { data: expensesData = [], isLoading: expensesLoading } = useQuery({
+    queryKey: ["expenses-admin", month, trainerId],
+    queryFn: () => expensesApi.byMonth(month, trainerId ?? undefined),
+    enabled: showExpenses,
   });
 
   const [filterTrainerHall, setFilterTrainerHall] = useState("");
@@ -322,6 +329,55 @@ export default function AdminReportsTab() {
               )}
             </>
           )}
+
+          {/* ── Расходы по тренерам ── */}
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+            <button onClick={() => setShowExpenses(v => !v)}
+              className="w-full px-3 py-2.5 flex items-center justify-between gap-2 active:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-2">
+                <Icon name="Receipt" size={14} className="text-gray-400" />
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  Расходы {trainerId ? "тренера" : "по тренерам"}
+                </span>
+              </div>
+              <Icon name={showExpenses ? "ChevronUp" : "ChevronDown"} size={14} className="text-gray-300" />
+            </button>
+            {showExpenses && (
+              <div className="border-t border-gray-100">
+                {expensesLoading && <div className="text-center py-4 text-xs text-gray-400">Загрузка...</div>}
+                {!expensesLoading && (expensesData as Record<string, unknown>[]).length === 0 && (
+                  <div className="text-center py-4 text-xs text-gray-400">Нет расходов за этот месяц</div>
+                )}
+                {!expensesLoading && (expensesData as Record<string, unknown>[]).length > 0 && (
+                  <>
+                    <div className="px-3 py-2 flex items-center justify-between bg-gray-50 border-b border-gray-100">
+                      <span className="text-[11px] text-gray-500 font-semibold">Итого за месяц</span>
+                      <span className="font-oswald font-bold text-sm" style={{ color: "hsl(0,72%,40%)" }}>
+                        {(expensesData as Record<string, unknown>[]).reduce((s, e) => s + (Number(e.amount) || 0), 0).toLocaleString("ru")} ₽
+                      </span>
+                    </div>
+                    <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+                      {(expensesData as Record<string, unknown>[]).map(e => (
+                        <div key={e.id as number} className="px-3 py-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-gray-800 truncate">{e.title as string}</div>
+                            <div className="text-[10px] text-gray-400 truncate">
+                              {!trainerId && e.trainer_name ? `${e.trainer_name as string} · ` : ""}
+                              {(e.date as string)?.slice(0, 10)}
+                              {e.category ? ` · ${e.category as string}` : ""}
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold flex-shrink-0" style={{ color: "hsl(0,72%,40%)" }}>
+                            {Number(e.amount).toLocaleString("ru")} ₽
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ── Таблица по ВСЕМ тренерам ── */}
           {!trainerId && trainerRows.length > 0 && (

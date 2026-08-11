@@ -46,6 +46,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [certStudent, setCertStudent] = useState<Record<string, unknown> | null>(null);
   const [certForm, setCertForm] = useState({ cert: false, cert_from: "", cert_to: "" });
   const [certSaving, setCertSaving] = useState(false);
+  const [leaveStudent, setLeaveStudent] = useState<Record<string, unknown> | null>(null);
+  const [leaveForm, setLeaveForm] = useState({ leave_reason: "", leave_until: "" });
+  const [leaveSaving, setLeaveSaving] = useState(false);
 
   const showToast = (msg: string) => {
     setOfflineToast(msg);
@@ -57,6 +60,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
   const [filterHall, setFilterHall] = useState("");
   const [filterSport, setFilterSport] = useState<"" | "sport" | "main">("");
   const [filterBirthday, setFilterBirthday] = useState(false);
+  const [showLeave, setShowLeave] = useState(false);
 
   const today = todayStr();
   const todayMD = todayMMDD();
@@ -96,6 +100,8 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
 
   const hasBirthdayStudents = (students as Record<string, unknown>[]).some(s => isBirthday(s));
 
+  const leaveCount = (students as Record<string, unknown>[]).filter(s => s.on_leave).length;
+
   const filtered = (students as Record<string, unknown>[]).filter(s => {
     const q = search.toLowerCase();
     if (q && !(s.name as string)?.toLowerCase().includes(q)) return false;
@@ -104,6 +110,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     if (filterSport === "sport" && !s.has_sport) return false;
     if (filterSport === "main" && s.has_sport) return false;
     if (filterBirthday && !isBirthday(s)) return false;
+    if (!showLeave && s.on_leave) return false;
     return true;
   });
 
@@ -130,6 +137,21 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         qc.invalidateQueries({ queryKey: ["att-month"] });
       }
     } finally { setTogglingGt(prev => { const n = new Set(prev); n.delete(key); return n; }); }
+  };
+
+  const [markingAll, setMarkingAll] = useState(false);
+  const markAllPresent = async () => {
+    const ids = filtered
+      .map(s => s.id as number)
+      .filter(sid => !isPresent(sid, "main"));
+    if (ids.length === 0) return;
+    setMarkingAll(true);
+    try {
+      await attendanceApi.markAll({ student_ids: ids, date, present: true, group_type: "main" });
+      qc.invalidateQueries({ queryKey: ["att-date"] });
+      qc.invalidateQueries({ queryKey: ["att-month"] });
+      showToast(`✓ Отмечено присутствие: ${ids.length}`);
+    } finally { setMarkingAll(false); }
   };
 
   const markPay = async (sid: number) => {
@@ -181,6 +203,36 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       qc.invalidateQueries({ queryKey: ["students"] });
       setCertStudent(null);
     } finally { setCertSaving(false); }
+  };
+
+  const openLeave = (s: Record<string, unknown>) => {
+    setLeaveStudent(s);
+    setLeaveForm({
+      leave_reason: (s.leave_reason as string) || "",
+      leave_until: (s.leave_until as string) || "",
+    });
+  };
+
+  const saveLeave = async () => {
+    if (!leaveStudent) return;
+    setLeaveSaving(true);
+    try {
+      await studentsApi.setLeave(leaveStudent.id as number, { on_leave: true, leave_reason: leaveForm.leave_reason, leave_until: leaveForm.leave_until });
+      qc.invalidateQueries({ queryKey: ["students"] });
+      setLeaveStudent(null);
+      showToast("✓ Ученик отмечен как в отпуске");
+    } finally { setLeaveSaving(false); }
+  };
+
+  const cancelLeave = async () => {
+    if (!leaveStudent) return;
+    setLeaveSaving(true);
+    try {
+      await studentsApi.setLeave(leaveStudent.id as number, { on_leave: false });
+      qc.invalidateQueries({ queryKey: ["students"] });
+      setLeaveStudent(null);
+      showToast("✓ Отпуск отменён");
+    } finally { setLeaveSaving(false); }
   };
 
   const addStudent = async (e: React.FormEvent) => {
@@ -311,6 +363,16 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       </div>
 
+      {/* Отметить всех присутствующими (по текущим фильтрам, на выбранную дату) */}
+      {canEdit && filtered.length > 0 && absentCount > 0 && (
+        <button onClick={markAllPresent} disabled={markingAll}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:opacity-80 disabled:opacity-60"
+          style={{ background: "hsl(142,55%,38%)" }}>
+          <Icon name="CheckCheck" size={16} />
+          {markingAll ? "Отмечаю..." : `Отметить всех присутствующими (${absentCount})`}
+        </button>
+      )}
+
       {/* Поиск */}
       <div className="relative">
         <Icon name="Search" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -419,6 +481,15 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       </div>
 
+      {/* Показать учеников в отпуске */}
+      {leaveCount > 0 && (
+        <button onClick={() => setShowLeave(v => !v)}
+          className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+          style={showLeave ? { background: "hsl(38,80%,45%)", color: "#fff" } : { background: "hsl(38,90%,95%)", color: "hsl(38,80%,35%)" }}>
+          🏖 {showLeave ? "Скрыть в отпуске" : `Показать в отпуске (${leaveCount})`}
+        </button>
+      )}
+
       {activeFilters > 0 && (
         <button onClick={() => { setFilterGrp(""); setFilterHall(""); setFilterSport(""); setFilterBirthday(false); }}
           className="self-start flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
@@ -466,6 +537,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
             onUnmarkPay={() => unmarkPay(sid)}
             onMarkMain={() => markAtt(sid, "main")}
             onMarkSport={() => markAtt(sid, "sport")}
+            onLeave={() => openLeave(s)}
           />
         );
       })}
@@ -554,6 +626,40 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           <div className="flex gap-2 pt-1">
             <OutlineBtn onClick={() => setCertStudent(null)}>Отмена</OutlineBtn>
             <PrimaryBtn onClick={saveCert} disabled={certSaving}>{certSaving ? "..." : "Сохранить"}</PrimaryBtn>
+          </div>
+        </div>
+      </BottomSheet>
+
+      {/* Отпуск / больничный */}
+      <BottomSheet open={!!leaveStudent} onClose={() => setLeaveStudent(null)} title={`Отпуск: ${leaveStudent?.name || ""}`}>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gray-500">
+            Пока ученик в отпуске, он скрыт из списка посещаемости и не учитывается как должник в отчёте об оплате.
+          </p>
+          <div>
+            <div className="text-[10px] text-gray-400 mb-1">Причина (необязательно)</div>
+            <input className={inputCls} placeholder="Например: отпуск, больничный..."
+              value={leaveForm.leave_reason} onChange={e => setLeaveForm(p => ({ ...p, leave_reason: e.target.value }))} />
+          </div>
+          <div>
+            <div className="text-[10px] text-gray-400 mb-1">Вернётся до (необязательно)</div>
+            <input className={inputCls} type="date" value={leaveForm.leave_until} onChange={e => setLeaveForm(p => ({ ...p, leave_until: e.target.value }))} />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <OutlineBtn onClick={() => setLeaveStudent(null)}>Отмена</OutlineBtn>
+            {leaveStudent?.on_leave ? (
+              <button type="button" onClick={cancelLeave} disabled={leaveSaving}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white transition-opacity disabled:opacity-50"
+                style={{ background: "hsl(142,55%,38%)" }}>
+                {leaveSaving ? "..." : "Вернуть из отпуска"}
+              </button>
+            ) : (
+              <button type="button" onClick={saveLeave} disabled={leaveSaving}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-white transition-opacity disabled:opacity-50"
+                style={{ background: "hsl(38,80%,45%)" }}>
+                {leaveSaving ? "..." : "Отправить в отпуск"}
+              </button>
+            )}
           </div>
         </div>
       </BottomSheet>
