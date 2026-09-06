@@ -112,8 +112,9 @@ def handler(event: dict, context) -> dict:
             INSERT INTO {S}.students
               (trainer_id, name, hall, hall2, grp, schedule, phone, iko, fee,
                annual_fee_number, lvl, cert, cert_from, cert_to,
-               birthdate, insurance, insurance_to, has_sport, sport_schedule, team_level, vk_id)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at
+               birthdate, insurance, insurance_to, has_sport, sport_schedule, team_level, vk_id,
+               federation_contract)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at
         """, (
             uid, name,
             body.get("hall") or None, body.get("hall2") or None,
@@ -131,6 +132,7 @@ def handler(event: dict, context) -> dict:
             body.get("sport_schedule") or None,
             team_level,
             (body.get("vk_id") or "").strip() or None,
+            bool(body.get("federation_contract", False)),
         ))
         row = cur.fetchone()
         conn.commit()
@@ -160,7 +162,8 @@ def handler(event: dict, context) -> dict:
               fee=%s, annual_fee_number=%s, lvl=%s,
               cert=%s, cert_from=%s, cert_to=%s,
               birthdate=%s, insurance=%s, insurance_to=%s,
-              has_sport=%s, sport_schedule=%s, team_level=%s, vk_id=%s
+              has_sport=%s, sport_schedule=%s, team_level=%s, vk_id=%s,
+              federation_contract=%s
             WHERE id=%s
         """, (
             body.get("name"),
@@ -179,6 +182,7 @@ def handler(event: dict, context) -> dict:
             body.get("sport_schedule") or None,
             team_level,
             (body.get("vk_id") or "").strip() or None,
+            bool(body.get("federation_contract", False)),
             sid
         ))
         conn.commit()

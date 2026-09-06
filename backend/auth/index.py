@@ -293,7 +293,9 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return ok({"can_edit_journal": new_val})
 
-    # DELETE ?action=delete_trainer&id=X  (admin only)
+    # DELETE ?action=delete_trainer&id=X[&transfer_to=Y]  (admin only)
+    # Если передан transfer_to — все ученики (включая архивных) и их посещаемость/оплаты
+    # переносятся новому тренеру вместо удаления.
     if method == "DELETE" and action == "delete_trainer":
         cur.execute(f"SELECT role FROM {S}.users WHERE id=%s", (user_id,))
         row = cur.fetchone()
@@ -308,7 +310,28 @@ def handler(event: dict, context) -> dict:
         if not cur.fetchone():
             cur.close(); conn.close()
             return err("Тренер не найден", 404)
-        # Удаляем каскадно все связанные данные тренера
+
+        transfer_to = qs.get("transfer_to") or body.get("transfer_to")
+        if transfer_to:
+            cur.execute(f"SELECT id FROM {S}.users WHERE id=%s AND role='trainer'", (transfer_to,))
+            if not cur.fetchone():
+                cur.close(); conn.close()
+                return err("Новый тренер не найден", 404)
+            if str(transfer_to) == str(tid):
+                cur.close(); conn.close()
+                return err("Нельзя передать ученика тому же тренеру")
+            cur.execute(f"UPDATE {S}.students SET trainer_id=%s WHERE trainer_id=%s", (transfer_to, tid))
+            moved = cur.rowcount
+            cur.execute(f"UPDATE {S}.attendance SET trainer_id=%s WHERE trainer_id=%s", (transfer_to, tid))
+            cur.execute(f"UPDATE {S}.payments SET trainer_id=%s WHERE trainer_id=%s", (transfer_to, tid))
+            cur.execute(f"UPDATE {S}.personal_sessions SET trainer_id=%s WHERE trainer_id=%s", (transfer_to, tid))
+            cur.execute(f"DELETE FROM {S}.notes WHERE trainer_id=%s", (tid,))
+            cur.execute(f"DELETE FROM {S}.users WHERE id=%s", (tid,))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": f"Тренер удалён, учеников передано: {moved}", "moved": moved})
+
+        # Без transfer_to — удаляем каскадно все связанные данные тренера
         cur.execute(f"""
             DELETE FROM {S}.attendance
             WHERE student_id IN (SELECT id FROM {S}.students WHERE trainer_id=%s)

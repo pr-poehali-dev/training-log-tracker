@@ -19,6 +19,7 @@ const emptyForm = (user: AppUser): FormState => ({
   has_sport: false, sport_schedule: "",
   team_level: "regular",
   vk_id: "",
+  federation_contract: false,
 });
 
 // ─── STUDENTS ────────────────────────────────────────────────────────────────
@@ -280,6 +281,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
       sport_schedule: (s.sport_schedule as string) || "",
       team_level: ((s.team_level as string) || "regular") as FormState["team_level"],
       vk_id: (s.vk_id as string) || "",
+      federation_contract: Boolean(s.federation_contract),
     });
     setEditStudent(s);
   };

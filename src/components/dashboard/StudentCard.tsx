@@ -161,6 +161,13 @@ export function StudentCard({
             {!s.cert && <span className="badge-absent">Нет справки</span>}
             {s.cert && !certOk && <span className="badge-absent">Справка !</span>}
             {s.insurance && !insOk && <span className="badge-absent">Страховка !</span>}
+            <button type="button" onClick={onEdit}
+              className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors"
+              style={s.federation_contract
+                ? { background: "hsl(142,50%,95%)", color: "hsl(142,55%,32%)" }
+                : { background: "hsl(0,72%,97%)", color: "hsl(0,72%,45%)" }}>
+              {s.federation_contract ? "✓ Договор ФЕД" : "Нет договора ФЕД"}
+            </button>
             {s.annual_fee_number && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                 № {s.annual_fee_number as string}

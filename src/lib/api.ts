@@ -42,8 +42,8 @@ export const authApi = {
   trainers: () =>
     req(`${URLS.auth}?action=trainers`),
 
-  deleteTrainer: (id: number) =>
-    req(`${URLS.auth}?action=delete_trainer&id=${id}`, { method: "DELETE" }),
+  deleteTrainer: (id: number, transferTo?: number) =>
+    req(`${URLS.auth}?action=delete_trainer&id=${id}${transferTo ? `&transfer_to=${transferTo}` : ""}`, { method: "DELETE" }),
 
   togglePermission: (id: number) =>
     req(`${URLS.auth}?action=toggle_permission&id=${id}`, { method: "POST" }),

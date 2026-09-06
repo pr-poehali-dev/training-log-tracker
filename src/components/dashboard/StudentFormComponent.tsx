@@ -10,6 +10,7 @@ export type FormState = {
   has_sport: boolean; sport_schedule: string;
   team_level: TeamLevel;
   vk_id: string;
+  federation_contract: boolean;
 };
 
 export function addMonths(dateStr: string, months: number): string {
@@ -131,6 +132,12 @@ export function StudentForm({ form, setForm, onSubmit, onCancel, saving, submitL
           </button>
         ))}
       </div>
+
+      <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Федерация</div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.federation_contract} onChange={f("federation_contract")} className="accent-red-600 w-4 h-4" />
+        Есть договор о вступлении в федерацию
+      </label>
 
       <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Спортивная группа</div>
       <label className="flex items-center gap-2 text-sm cursor-pointer">

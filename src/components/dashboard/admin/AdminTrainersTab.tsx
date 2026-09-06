@@ -169,6 +169,8 @@ export default function AdminTrainersTab({ user }: { user: AppUser }) {
   const [editSaving, setEditSaving] = useState(false);
   const [editErr, setEditErr] = useState("");
   const [search, setSearch] = useState("");
+  const [deleteModal, setDeleteModal] = useState<{ id: number; name: string; studentCount: number } | null>(null);
+  const [transferTo, setTransferTo] = useState<string>("");
 
   const todayMD = new Date().toISOString().slice(5, 10);
 
@@ -199,11 +201,20 @@ export default function AdminTrainersTab({ user }: { user: AppUser }) {
     finally { setEditSaving(false); }
   };
 
-  const del = async (id: number, name: string) => {
-    if (!window.confirm(`Удалить тренера "${name}"?`)) return;
+  const openDelete = (id: number, name: string, studentCount: number) => {
+    setTransferTo("");
+    setDeleteModal({ id, name, studentCount });
+  };
+
+  const confirmDelete = async (withTransfer: boolean) => {
+    if (!deleteModal) return;
+    const { id } = deleteModal;
     setDeleting(prev => new Set([...prev, id]));
-    try { await authApi.deleteTrainer(id); qc.invalidateQueries({ queryKey: ["trainers"] }); }
-    finally { setDeleting(prev => { const n = new Set(prev); n.delete(id); return n; }); }
+    try {
+      await authApi.deleteTrainer(id, withTransfer ? +transferTo : undefined);
+      qc.invalidateQueries({ queryKey: ["trainers"] });
+      setDeleteModal(null);
+    } finally { setDeleting(prev => { const n = new Set(prev); n.delete(id); return n; }); }
   };
 
   const trainerList = (trainers as Record<string, unknown>[])
@@ -385,7 +396,7 @@ export default function AdminTrainersTab({ user }: { user: AppUser }) {
                       className="text-gray-300 hover:text-blue-400 transition-colors p-1">
                       <Icon name="Pencil" size={15} />
                     </button>
-                    <button onClick={() => del(tid, t.full_name as string)} disabled={deleting.has(tid)}
+                    <button onClick={() => openDelete(tid, t.full_name as string, studentCount)} disabled={deleting.has(tid)}
                       className="text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40 p-1">
                       <Icon name="Trash2" size={15} />
                     </button>
@@ -406,6 +417,56 @@ export default function AdminTrainersTab({ user }: { user: AppUser }) {
       <div className="border-t border-gray-100 pt-4 mt-1">
         <SupervisorsSection />
       </div>
+
+      {/* Модалка удаления тренера с передачей учеников */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={() => setDeleteModal(null)}>
+          <div className="bg-white rounded-2xl p-4 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-oswald text-base font-bold mb-2" style={{ color: "hsl(0,72%,40%)" }}>
+              Удалить тренера «{deleteModal.name}»
+            </h3>
+
+            {deleteModal.studentCount > 0 ? (
+              <>
+                <p className="text-sm text-gray-500 mb-3">
+                  У этого тренера {deleteModal.studentCount} учеников. Можно передать их другому тренеру или удалить вместе с тренером безвозвратно.
+                </p>
+                <div className="text-[10px] text-gray-400 mb-1 uppercase tracking-wide font-semibold">Передать учеников тренеру</div>
+                <select className={inputCls + " mb-3"} value={transferTo} onChange={e => setTransferTo(e.target.value)}>
+                  <option value="">— Выбрать тренера —</option>
+                  {(trainers as Record<string, unknown>[])
+                    .filter(t => (t.id as number) !== deleteModal.id)
+                    .map(t => (
+                      <option key={t.id as number} value={t.id as number}>{t.full_name as string}</option>
+                    ))}
+                </select>
+                <div className="flex flex-col gap-2">
+                  <PrimaryBtn disabled={!transferTo || deleting.has(deleteModal.id)} onClick={() => confirmDelete(true)}>
+                    {deleting.has(deleteModal.id) ? "..." : "Передать учеников и удалить тренера"}
+                  </PrimaryBtn>
+                  <button
+                    onClick={() => confirmDelete(false)}
+                    disabled={deleting.has(deleteModal.id)}
+                    className="text-xs font-semibold text-red-500 hover:text-red-600 py-1.5 disabled:opacity-50">
+                    Удалить тренера вместе со всеми учениками
+                  </button>
+                  <OutlineBtn onClick={() => setDeleteModal(null)}>Отмена</OutlineBtn>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 mb-3">У этого тренера нет учеников. Удалить тренера?</p>
+                <div className="flex gap-2">
+                  <OutlineBtn onClick={() => setDeleteModal(null)}>Отмена</OutlineBtn>
+                  <PrimaryBtn disabled={deleting.has(deleteModal.id)} onClick={() => confirmDelete(false)}>
+                    {deleting.has(deleteModal.id) ? "..." : "Удалить"}
+                  </PrimaryBtn>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
