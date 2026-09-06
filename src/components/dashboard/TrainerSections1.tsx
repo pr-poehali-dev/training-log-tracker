@@ -144,21 +144,6 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     } finally { setTogglingGt(prev => { const n = new Set(prev); n.delete(key); return n; }); }
   };
 
-  const [markingAll, setMarkingAll] = useState(false);
-  const markAllPresent = async () => {
-    const ids = filtered
-      .map(s => s.id as number)
-      .filter(sid => !isPresent(sid, "main"));
-    if (ids.length === 0) return;
-    setMarkingAll(true);
-    try {
-      await attendanceApi.markAll({ student_ids: ids, date, present: true, group_type: "main" });
-      qc.invalidateQueries({ queryKey: ["att-date"] });
-      qc.invalidateQueries({ queryKey: ["att-month"] });
-      showToast(`✓ Отмечено присутствие: ${ids.length}`);
-    } finally { setMarkingAll(false); }
-  };
-
   const markPay = async (sid: number) => {
     setToggling(prev => new Set([...prev, sid]));
     try {
@@ -369,16 +354,6 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           </div>
         </div>
       </div>
-
-      {/* Отметить всех присутствующими (по текущим фильтрам, на выбранную дату) */}
-      {canEdit && filtered.length > 0 && absentCount > 0 && (
-        <button onClick={markAllPresent} disabled={markingAll}
-          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white transition-all active:opacity-80 disabled:opacity-60"
-          style={{ background: "hsl(142,55%,38%)" }}>
-          <Icon name="CheckCheck" size={16} />
-          {markingAll ? "Отмечаю..." : `Отметить всех присутствующими (${absentCount})`}
-        </button>
-      )}
 
       {/* Поиск */}
       <div className="relative">
