@@ -1,6 +1,7 @@
 import json
 import os
 import psycopg2
+from datetime import datetime, timezone, timedelta
 
 S = os.environ.get("MAIN_DB_SCHEMA", "t_p10685360_training_log_tracker")
 CORS = {
@@ -99,6 +100,14 @@ def handler(event: dict, context) -> dict:
             group_type = body.get("group_type", "main")
             if group_type not in ("main", "sport"):
                 group_type = "main"
+
+            # Тренер может отмечать/снимать посещение только за сегодняшний день (по МСК).
+            # Администратор может редактировать любую дату.
+            if role != "admin":
+                today_msk = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
+                if date != today_msk:
+                    cur.close(); conn.close()
+                    return err("Редактировать посещаемость можно только за сегодняшний день", 403)
 
             # Массовая отметка — student_ids: [1,2,3]
             student_ids = body.get("student_ids")
