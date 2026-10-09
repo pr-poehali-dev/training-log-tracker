@@ -88,10 +88,11 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     const diffDays = (Date.now() - created.getTime()) / 86400000;
     return diffDays <= 30;
   };
-  const isToday = date === todayStr();
+  const dayStartMs = new Date(`${date}T00:00:00+03:00`).getTime();
+  const isFutureDay = Date.now() < dayStartMs;
+  const isExpiredDay = Date.now() > dayStartMs + 72 * 3600 * 1000;
   const canEditJournal = user.role === "admin" || user.can_edit_journal !== false;
-  // Тренер может отмечать/снимать посещение только за сегодняшний день, админ — за любой
-  const canEdit = user.role === "admin" || (canEditJournal && isToday);
+  const canEdit = user.role === "admin" || (canEditJournal && !isFutureDay && !isExpiredDay);
 
   const uniq = (field: string) => [...new Set((students as Record<string, unknown>[]).map(s => s[field] as string).filter(Boolean))];
   const halls = [...new Set([
@@ -115,7 +116,7 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
     if (filterSport === "sport" && !s.has_sport) return false;
     if (filterSport === "main" && s.has_sport) return false;
     if (filterBirthday && !isBirthday(s)) return false;
-    if (!showLeave && s.on_leave) return false;
+    if (showLeave ? !s.on_leave : s.on_leave) return false;
     return true;
   });
 
@@ -463,13 +464,23 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
         </div>
       </div>
 
-      {/* Показать учеников в отпуске */}
+      {/* Фильтр по статусу: активные / в отпуске */}
       {leaveCount > 0 && (
-        <button onClick={() => setShowLeave(v => !v)}
-          className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
-          style={showLeave ? { background: "hsl(38,80%,45%)", color: "#fff" } : { background: "hsl(38,90%,95%)", color: "hsl(38,80%,35%)" }}>
-          🏖 {showLeave ? "Скрыть в отпуске" : `Показать в отпуске (${leaveCount})`}
-        </button>
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Статус</div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setShowLeave(false)}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={!showLeave
+                ? { background: "hsl(0,72%,40%)", color: "#fff" }
+                : { background: "#eee", color: "#555" }}>Занимаются</button>
+            <button onClick={() => setShowLeave(true)}
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={showLeave
+                ? { background: "hsl(38,80%,45%)", color: "#fff" }
+                : { background: "hsl(38,90%,95%)", color: "hsl(38,80%,35%)" }}>🏖 В отпуске ({leaveCount})</button>
+          </div>
+        </div>
       )}
 
       {activeFilters > 0 && (
@@ -484,7 +495,9 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           <Icon name="ShieldOff" size={13} />
           {!canEditJournal
             ? "Просмотр — внесение данных заблокировано администратором"
-            : "Посещение можно отмечать только за сегодняшний день"}
+            : isFutureDay
+            ? "Нельзя отмечать посещение на будущую дату"
+            : "Прошло более 48 часов — редактировать посещение за эту дату уже нельзя"}
         </div>
       )}
 

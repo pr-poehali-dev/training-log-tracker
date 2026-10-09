@@ -192,33 +192,65 @@ export default function TrainerDashboard({ user }: { user: AppUser }) {
   const { show: showReminder, dismiss: dismissReminder } = useJournalReminder(user);
   const { show: showPushPromo, dismiss: dismissPushPromo } = usePushPromo();
 
+  const shiftDate = (delta: number) => {
+    const d = new Date(date + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    const p = (n: number) => String(n).padStart(2, "0");
+    setDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+  };
+  const shiftMonth = (delta: number) => {
+    const [y, m] = month.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const navBtn = "w-11 h-11 flex items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-600 shadow-sm active:bg-gray-50 flex-shrink-0";
+  const openPicker = (e: React.MouseEvent<HTMLLabelElement>) => {
+    const input = e.currentTarget.querySelector("input") as HTMLInputElement | null;
+    try { input?.showPicker?.(); } catch { input?.focus(); }
+  };
+
   const toolbar = (
     <>
       {tab === "students" && (
-        <label className="flex items-center gap-3 w-full bg-white border border-gray-200 rounded-xl px-4 py-3 cursor-pointer shadow-sm">
-          <Icon name="CalendarDays" size={18} className="text-gray-400 flex-shrink-0" />
-          <span className="flex-1 text-sm font-medium text-gray-700">{formatDateRu(date)}</span>
-          <Icon name="ChevronDown" size={16} className="text-gray-400 flex-shrink-0" />
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="absolute opacity-0 w-0 h-0"
-          />
-        </label>
+        <div className="flex items-center gap-2 w-full">
+          <button type="button" onClick={() => shiftDate(-1)} className={navBtn} aria-label="Предыдущий день">
+            <Icon name="ChevronLeft" size={18} />
+          </button>
+          <label onClick={openPicker} className="relative flex-1 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 cursor-pointer shadow-sm">
+            <Icon name="CalendarDays" size={18} className="text-gray-400 flex-shrink-0" />
+            <span className="flex-1 text-sm font-medium text-gray-700">{formatDateRu(date)}</span>
+            <input
+              type="date"
+              value={date}
+              onChange={e => e.target.value && setDate(e.target.value)}
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            />
+          </label>
+          <button type="button" onClick={() => shiftDate(1)} className={navBtn} aria-label="Следующий день">
+            <Icon name="ChevronRight" size={18} />
+          </button>
+        </div>
       )}
       {(tab === "payments" || tab === "personal" || tab === "reports" || tab === "attendance" || tab === "expenses") && (
-        <label className="flex items-center gap-3 w-full bg-white border border-gray-200 rounded-xl px-4 py-3 cursor-pointer shadow-sm">
-          <Icon name="CalendarDays" size={18} className="text-gray-400 flex-shrink-0" />
-          <span className="flex-1 text-sm font-medium text-gray-700">{formatMonthRu(month)}</span>
-          <Icon name="ChevronDown" size={16} className="text-gray-400 flex-shrink-0" />
-          <input
-            type="month"
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="absolute opacity-0 w-0 h-0"
-          />
-        </label>
+        <div className="flex items-center gap-2 w-full">
+          <button type="button" onClick={() => shiftMonth(-1)} className={navBtn} aria-label="Предыдущий месяц">
+            <Icon name="ChevronLeft" size={18} />
+          </button>
+          <label onClick={openPicker} className="relative flex-1 flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 cursor-pointer shadow-sm">
+            <Icon name="CalendarDays" size={18} className="text-gray-400 flex-shrink-0" />
+            <span className="flex-1 text-sm font-medium text-gray-700 capitalize">{formatMonthRu(month)}</span>
+            <input
+              type="month"
+              value={month}
+              onChange={e => e.target.value && setMonth(e.target.value)}
+              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+            />
+          </label>
+          <button type="button" onClick={() => shiftMonth(1)} className={navBtn} aria-label="Следующий месяц">
+            <Icon name="ChevronRight" size={18} />
+          </button>
+        </div>
       )}
     </>
   );

@@ -101,13 +101,22 @@ def handler(event: dict, context) -> dict:
             if group_type not in ("main", "sport"):
                 group_type = "main"
 
-            # Тренер может отмечать/снимать посещение только за сегодняшний день (по МСК).
+            # Тренер может отмечать/снимать посещение в течение 48 часов после окончания дня занятия (МСК).
             # Администратор может редактировать любую дату.
             if role != "admin":
-                today_msk = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
-                if date != today_msk:
+                msk = timezone(timedelta(hours=3))
+                try:
+                    day_start = datetime.strptime(date or "", "%Y-%m-%d").replace(tzinfo=msk)
+                except ValueError:
                     cur.close(); conn.close()
-                    return err("Редактировать посещаемость можно только за сегодняшний день", 403)
+                    return err("Неверная дата")
+                now_msk = datetime.now(msk)
+                if now_msk < day_start:
+                    cur.close(); conn.close()
+                    return err("Нельзя отмечать посещение на будущую дату", 403)
+                if now_msk > day_start + timedelta(hours=24 + 48):
+                    cur.close(); conn.close()
+                    return err("Прошло более 48 часов — редактирование посещаемости за эту дату недоступно", 403)
 
             # Массовая отметка — student_ids: [1,2,3]
             student_ids = body.get("student_ids")
