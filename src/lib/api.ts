@@ -84,6 +84,9 @@ export const studentsApi = {
   remove: (id: number, reason: string) =>
     offlineMutate(`${URLS.students}?id=${id}`, "DELETE", { reason }, "students"),
 
+  removePermanent: (id: number) =>
+    req(`${URLS.students}?id=${id}&permanent=1`, { method: "DELETE" }),
+
   listArchived: (trainerId?: number) => {
     const url = `${URLS.students}?archived=1${trainerId ? `&trainer_id=${trainerId}` : ""}`;
     return offlineGet(url, `students_archived_${trainerId ?? "me"}`);

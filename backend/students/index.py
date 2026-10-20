@@ -195,6 +195,23 @@ def handler(event: dict, context) -> dict:
         if not sid:
             cur.close(); conn.close()
             return err("Нет id")
+
+        if qs.get("permanent") == "1":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Удалять учеников навсегда может только администратор", 403)
+            cur.execute(f"SELECT id FROM {S}.students WHERE id=%s", (sid,))
+            if not cur.fetchone():
+                cur.close(); conn.close()
+                return err("Ученик не найден", 404)
+            cur.execute(f"DELETE FROM {S}.attendance WHERE student_id=%s", (sid,))
+            cur.execute(f"DELETE FROM {S}.payments WHERE student_id=%s", (sid,))
+            cur.execute(f"DELETE FROM {S}.personal_sessions WHERE student_id=%s", (sid,))
+            cur.execute(f"DELETE FROM {S}.students WHERE id=%s", (sid,))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Ученик удалён"})
+
         cur.execute(f"SELECT trainer_id FROM {S}.students WHERE id=%s AND archived=FALSE", (sid,))
         row = cur.fetchone()
         if not row:

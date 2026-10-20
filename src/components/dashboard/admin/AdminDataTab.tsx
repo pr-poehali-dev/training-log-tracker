@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApi, studentsApi, attendanceApi, paymentsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import { calcAge, ageLabel } from "@/components/dashboard/trainer-ui";
+import AdminPersonalList from "./AdminPersonalList";
 
 const todayStr  = () => new Date().toISOString().slice(0, 10);
 const monStr    = () => new Date().toISOString().slice(0, 7);
@@ -56,6 +57,21 @@ export default function AdminDataTab() {
   });
 
   const [toggling, setToggling] = useState<Set<string>>(new Set());
+
+  const deleteStudent = async (sid: number, name: string) => {
+    if (!window.confirm(`Удалить ученика «${name}» навсегда? Вместе с ним удалятся его посещения, оплаты и доп. тренировки. Отменить это нельзя.`)) return;
+    const k = `d${sid}`;
+    setToggling(prev => new Set([...prev, k]));
+    try {
+      await studentsApi.removePermanent(sid);
+      qc.invalidateQueries({ queryKey: ["students-admin"] });
+      qc.invalidateQueries({ queryKey: ["students-archived-admin"] });
+      qc.invalidateQueries({ queryKey: ["att-admin"] });
+      qc.invalidateQueries({ queryKey: ["pay-admin"] });
+      qc.invalidateQueries({ queryKey: ["personal-admin"] });
+      qc.invalidateQueries({ queryKey: ["trainers"] });
+    } finally { setToggling(prev => { const n = new Set(prev); n.delete(k); return n; }); }
+  };
 
   const isPresent      = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present && (a.group_type ?? "main") === "main");
   const isPresentSport = (sid: number) => (attData as Record<string, unknown>[]).some(a => a.student_id === sid && a.present && a.group_type === "sport");
@@ -326,6 +342,10 @@ export default function AdminDataTab() {
                         )}
                       </div>
                     </div>
+                    <button onClick={() => deleteStudent(sid, s.name as string)} disabled={toggling.has(`d${sid}`)}
+                      className="text-gray-300 hover:text-red-500 transition-colors p-1 disabled:opacity-40 flex-shrink-0" title="Удалить ученика">
+                      <Icon name="Trash2" size={16} />
+                    </button>
                   </div>
                   <div className="flex border-t border-gray-100">
                     {/* Оплата */}
@@ -370,6 +390,8 @@ export default function AdminDataTab() {
             )}
           </div>
 
+          <AdminPersonalList trainerId={selectedTrainer!} month={month} />
+
           {/* Архив */}
           {showArchive && (
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
@@ -387,8 +409,14 @@ export default function AdminDataTab() {
                         <div className="text-xs text-gray-400">{[s.hall, s.grp].filter(Boolean).join(" · ")}</div>
                         {s.archive_reason && <div className="text-xs text-orange-400 mt-0.5">Причина: {s.archive_reason as string}</div>}
                       </div>
-                      <div className="text-[10px] text-gray-300 whitespace-nowrap">
-                        {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-[10px] text-gray-300 whitespace-nowrap">
+                          {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+                        </div>
+                        <button onClick={() => deleteStudent(s.id as number, s.name as string)} disabled={toggling.has(`d${s.id as number}`)}
+                          className="text-gray-300 hover:text-red-500 transition-colors p-1 disabled:opacity-40" title="Удалить навсегда">
+                          <Icon name="Trash2" size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
