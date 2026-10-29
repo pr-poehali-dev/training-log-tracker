@@ -320,12 +320,10 @@ export function StudentsSection({ user, date, month }: { user: AppUser; date: st
           УЧЕНИКИ <span className="text-gray-400 font-golos font-normal text-sm">({filtered.length})</span>
         </h1>
         <div className="flex gap-2">
-          {user.role === "admin" && (
-            <button onClick={() => setShowArchive(!showArchive)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
-              <Icon name="Archive" size={13} />Архив
-            </button>
-          )}
+          <button onClick={() => setShowArchive(!showArchive)}
+            className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
+            <Icon name="Archive" size={13} />Архив
+          </button>
           <button onClick={() => setShowImport(true)}
             className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 transition-colors">
             <Icon name="Upload" size={13} />CSV
