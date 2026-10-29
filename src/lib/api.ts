@@ -87,6 +87,12 @@ export const studentsApi = {
   restore: (id: number) =>
     req(`${URLS.students}?action=restore&id=${id}`, { method: "PATCH", body: JSON.stringify({}) }),
 
+  requestRestore: (id: number) =>
+    req(`${URLS.students}?action=request_restore&id=${id}`, { method: "PATCH", body: JSON.stringify({}) }),
+
+  resolveRestore: (requestId: number, approve: boolean) =>
+    req(`${URLS.students}?action=resolve_restore&id=${requestId}`, { method: "PATCH", body: JSON.stringify({ approve }) }),
+
   removePermanent: (id: number) =>
     req(`${URLS.students}?id=${id}&permanent=1`, { method: "DELETE" }),
 

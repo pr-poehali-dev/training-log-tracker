@@ -18,6 +18,21 @@ def ok(data):
 def err(msg, code=400):
     return {"statusCode": code, "headers": {**CORS, "Content-Type": "application/json"}, "body": json.dumps({"error": msg})}
 
+def restore_student(cur, sid):
+    cur.execute(f"SELECT id, name, trainer_id FROM {S}.students WHERE id=%s AND archived=TRUE", (sid,))
+    row = cur.fetchone()
+    if not row:
+        return False
+    cur.execute(f"""
+        UPDATE {S}.students SET archived=FALSE, archive_reason=NULL, archived_at=NULL
+        WHERE id=%s
+    """, (sid,))
+    cur.execute(f"""
+        INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date, reason)
+        VALUES (%s,%s,%s,'joined',(NOW() AT TIME ZONE 'Europe/Moscow')::date,'Возвращён из архива')
+    """, (row[0], row[2], row[1]))
+    return True
+
 def handler(event: dict, context) -> dict:
     """CRUD учеников. Архив при удалении. Новые поля: hall2, birthdate, annual_fee_number, insurance, insurance_to."""
     if event.get("httpMethod") == "OPTIONS":
@@ -82,6 +97,12 @@ def handler(event: dict, context) -> dict:
 
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+        if show_archived and rows:
+            cur.execute(f"SELECT student_id FROM {S}.restore_requests WHERE status='pending'")
+            pending_ids = {r[0] for r in cur.fetchall()}
+            for row in rows:
+                row["restore_pending"] = row["id"] in pending_ids
 
         # Наблюдателю не показываем финансовые поля
         if role == "supervisor":
@@ -278,10 +299,7 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return ok({"updated": count, "message": f"Переименовано {count} учеников"})
 
-        if action == "restore":
-            if role != "admin":
-                cur.close(); conn.close()
-                return err("Вернуть из архива может только администратор", 403)
+        if action == "request_restore":
             sid = qs.get("id")
             if not sid:
                 cur.close(); conn.close()
@@ -291,14 +309,74 @@ def handler(event: dict, context) -> dict:
             if not row:
                 cur.close(); conn.close()
                 return err("Ученик не найден в архиве", 404)
+            if role != "admin" and str(row[2]) != str(uid):
+                cur.close(); conn.close()
+                return err("Нет прав", 403)
+            cur.execute(f"SELECT id FROM {S}.restore_requests WHERE student_id=%s AND status='pending'", (sid,))
+            if cur.fetchone():
+                cur.close(); conn.close()
+                return err("Запрос на возврат уже отправлен")
+            cur.execute(f"INSERT INTO {S}.restore_requests (student_id, trainer_id) VALUES (%s,%s) RETURNING id", (sid, uid))
+            req_id = cur.fetchone()[0]
+            cur.execute(f"SELECT full_name FROM {S}.users WHERE id=%s", (uid,))
+            trainer_name = (cur.fetchone() or ["?"])[0]
+            msg = f"Тренер {trainer_name} просит вернуть из архива ученика «{row[1]}»"
+            cur.execute(f"SELECT id FROM {S}.users WHERE role='admin'")
+            for (admin_id,) in cur.fetchall():
+                cur.execute(f"INSERT INTO {S}.notifications (user_id, type, message, ref_id) VALUES (%s,'restore_request',%s,%s)", (admin_id, msg, req_id))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Запрос отправлен администратору", "request_id": req_id})
+
+        if action == "resolve_restore":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Обработать запрос может только администратор", 403)
+            req_id = qs.get("id")
+            approve = bool(body.get("approve"))
+            if not req_id:
+                cur.close(); conn.close()
+                return err("Нет id")
+            cur.execute(f"SELECT student_id, trainer_id, status FROM {S}.restore_requests WHERE id=%s", (req_id,))
+            rq = cur.fetchone()
+            if not rq:
+                cur.close(); conn.close()
+                return err("Запрос не найден", 404)
+            if rq[2] != "pending":
+                cur.close(); conn.close()
+                return err("Запрос уже обработан")
+            cur.execute(f"SELECT name FROM {S}.students WHERE id=%s", (rq[0],))
+            st = cur.fetchone()
+            student_name = st[0] if st else "?"
+            if approve:
+                restore_student(cur, rq[0])
             cur.execute(f"""
-                UPDATE {S}.students SET archived=FALSE, archive_reason=NULL, archived_at=NULL
-                WHERE id=%s
-            """, (sid,))
+                UPDATE {S}.restore_requests SET status=%s, resolved_at=NOW(), resolved_by=%s
+                WHERE student_id=%s AND status='pending'
+            """, ("approved" if approve else "rejected", uid, rq[0]))
+            result_msg = (f"Администратор вернул ученика «{student_name}» из архива" if approve
+                          else f"Администратор отклонил возврат ученика «{student_name}» из архива")
+            cur.execute(f"INSERT INTO {S}.notifications (user_id, type, message) VALUES (%s,'restore_result',%s)", (rq[1], result_msg))
+            cur.execute(f"UPDATE {S}.notifications SET read=TRUE WHERE type='restore_request' AND ref_id=%s", (req_id,))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Ученик возвращён из архива" if approve else "Запрос отклонён"})
+
+        if action == "restore":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Вернуть из архива может только администратор", 403)
+            sid = qs.get("id")
+            if not sid:
+                cur.close(); conn.close()
+                return err("Нет id")
+            if not restore_student(cur, sid):
+                cur.close(); conn.close()
+                return err("Ученик не найден в архиве", 404)
             cur.execute(f"""
-                INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date, reason)
-                VALUES (%s,%s,%s,'joined',(NOW() AT TIME ZONE 'Europe/Moscow')::date,'Возвращён из архива')
-            """, (row[0], row[2], row[1]))
+                UPDATE {S}.restore_requests SET status='approved', resolved_at=NOW(), resolved_by=%s
+                WHERE student_id=%s AND status='pending'
+            """, (uid, sid))
             conn.commit()
             cur.close(); conn.close()
             return ok({"message": "Ученик возвращён из архива"})

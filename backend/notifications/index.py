@@ -46,10 +46,12 @@ def handler(event: dict, context) -> dict:
 
     if method == "GET":
         cur.execute(f"""
-            SELECT id, type, message, read, created_at
-            FROM {S}.notifications
-            WHERE user_id=%s
-            ORDER BY created_at DESC
+            SELECT n.id, n.type, n.message, n.read, n.created_at, n.ref_id,
+                   CASE WHEN n.type='restore_request' THEN r.status END AS request_status
+            FROM {S}.notifications n
+            LEFT JOIN {S}.restore_requests r ON n.type='restore_request' AND r.id=n.ref_id
+            WHERE n.user_id=%s
+            ORDER BY n.created_at DESC
             LIMIT 50
         """, (uid,))
         cols = [d[0] for d in cur.description]

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { notificationsApi } from "@/lib/api";
+import { notificationsApi, studentsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 
@@ -35,6 +35,29 @@ export default function NotificationBell({ user, date }: { user: AppUser; date: 
   const markOne = async (id: number) => {
     await notificationsApi.markRead(id);
     qc.invalidateQueries({ queryKey: ["notifications"] });
+  };
+
+  const [resolving, setResolving] = useState<number | null>(null);
+  const resolveRestore = async (e: React.MouseEvent, requestId: number, approve: boolean) => {
+    e.stopPropagation();
+    setResolving(requestId);
+    try {
+      await studentsApi.resolveRestore(requestId, approve);
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["students-archived"] });
+      qc.invalidateQueries({ queryKey: ["students-admin"] });
+      qc.invalidateQueries({ queryKey: ["students-archived-admin"] });
+      qc.invalidateQueries({ queryKey: ["stats-month"] });
+      qc.invalidateQueries({ queryKey: ["stats-year"] });
+    } finally { setResolving(null); }
+  };
+
+  const typeBadge = (t: string) => {
+    if (t === "archive") return { cls: "bg-orange-100 text-orange-600", label: "Архив" };
+    if (t === "restore_request") return { cls: "bg-green-100 text-green-700", label: "Возврат" };
+    if (t === "restore_result") return { cls: "bg-green-100 text-green-700", label: "Возврат" };
+    return { cls: "bg-blue-100 text-blue-600", label: "Журнал" };
   };
 
   const sendJournalFilled = async () => {
@@ -106,12 +129,28 @@ export default function NotificationBell({ user, date }: { user: AppUser; date: 
                       <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${!n.read ? "bg-red-500" : "bg-gray-200"}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${n.type === "archive" ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600"}`}>
-                            {n.type === "archive" ? "Архив" : "Журнал"}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeBadge(n.type as string).cls}`}>
+                            {typeBadge(n.type as string).label}
                           </span>
                           <span className="text-[10px] text-gray-300">{timeAgo(n.created_at as string)}</span>
                         </div>
                         <p className="text-xs text-gray-600 leading-relaxed">{n.message as string}</p>
+                        {n.type === "restore_request" && user.role === "admin" && (
+                          n.request_status === "pending" ? (
+                            <div className="flex gap-2 mt-2">
+                              <button onClick={e => resolveRestore(e, n.ref_id as number, true)} disabled={resolving === n.ref_id}
+                                className="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-white disabled:opacity-50"
+                                style={{ background: "hsl(142,55%,38%)" }}>Вернуть</button>
+                              <button onClick={e => resolveRestore(e, n.ref_id as number, false)} disabled={resolving === n.ref_id}
+                                className="flex-1 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50"
+                                style={{ background: "#eee", color: "#555" }}>Отклонить</button>
+                            </div>
+                          ) : (
+                            <div className="text-[11px] font-semibold mt-1.5" style={{ color: n.request_status === "approved" ? "hsl(142,55%,30%)" : "hsl(0,72%,45%)" }}>
+                              {n.request_status === "approved" ? "✓ Возвращён" : "Отклонено"}
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>

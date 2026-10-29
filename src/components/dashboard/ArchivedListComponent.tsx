@@ -14,6 +14,15 @@ export function ArchivedList({ user }: { user: AppUser }) {
     queryFn: () => studentsApi.listArchived(),
   });
 
+  const [requesting, setRequesting] = useState<number | null>(null);
+  const requestRestore = async (id: number) => {
+    setRequesting(id);
+    try {
+      await studentsApi.requestRestore(id);
+      qc.invalidateQueries({ queryKey: ["students-archived"] });
+    } finally { setRequesting(null); }
+  };
+
   const restore = async (id: number, name: string) => {
     if (!window.confirm(`Вернуть «${name}» из архива? Ученик снова станет активным и попадёт в статистику как новый.`)) return;
     setRestoring(id);
@@ -89,6 +98,15 @@ export function ArchivedList({ user }: { user: AppUser }) {
                 <div className="text-[10px] text-gray-300 whitespace-nowrap">
                   {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
                 </div>
+                {user.role === "trainer" && (
+                  s.restore_pending
+                    ? <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "hsl(38,90%,93%)", color: "hsl(38,80%,32%)" }}>Запрос отправлен</span>
+                    : <button onClick={() => requestRestore(s.id as number)} disabled={requesting === s.id}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold disabled:opacity-50"
+                        style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,28%)" }}>
+                        <Icon name="ArchiveRestore" size={12} />Запросить возврат
+                      </button>
+                )}
                 {user.role === "admin" && (
                   <button onClick={() => restore(s.id as number, s.name as string)} disabled={restoring === s.id}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold disabled:opacity-50"
