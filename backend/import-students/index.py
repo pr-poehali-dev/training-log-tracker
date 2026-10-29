@@ -136,6 +136,10 @@ def handler(event: dict, context) -> dict:
                 row.get("расписание") or None,
             ))
             new_id = cur.fetchone()[0]
+            cur.execute(f"""
+                INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date)
+                VALUES (%s,%s,%s,'joined',(NOW() AT TIME ZONE 'Europe/Moscow')::date)
+            """, (new_id, uid, name))
             added.append({"id": new_id, "name": name})
         except Exception as e:
             conn.rollback()

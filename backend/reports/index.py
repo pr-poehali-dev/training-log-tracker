@@ -44,6 +44,83 @@ def handler(event: dict, context) -> dict:
         cur.close(); conn.close()
         return err("Нет доступа к финансовым отчётам", 403)
 
+    stats_year = qs.get("stats_year")
+    if stats_year:
+        if not stats_year.isdigit() or len(stats_year) != 4:
+            cur.close(); conn.close()
+            return err("Неверный год")
+        stats_trainer = qs.get("trainer_id") if role == "admin" else str(uid)
+        cond = "AND e.trainer_id=%s" if stats_trainer else ""
+        params = [stats_year] + ([stats_trainer] if stats_trainer else [])
+        cur.execute(f"""
+            SELECT to_char(e.event_date,'MM') AS m, e.event_type, COUNT(*)
+            FROM {S}.student_events e
+            WHERE to_char(e.event_date,'YYYY')=%s {cond}
+            GROUP BY 1,2
+        """, params)
+        months = {f"{i:02d}": {"month": f"{stats_year}-{i:02d}", "joined": 0, "left": 0} for i in range(1, 13)}
+        for m, t, c in cur.fetchall():
+            months[m][t] = int(c)
+
+        by_trainer = []
+        if role == "admin" and not stats_trainer:
+            cur.execute(f"""
+                SELECT u.id, u.full_name,
+                       COUNT(*) FILTER (WHERE e.event_type='joined'),
+                       COUNT(*) FILTER (WHERE e.event_type='left')
+                FROM {S}.users u
+                LEFT JOIN {S}.student_events e ON e.trainer_id=u.id AND to_char(e.event_date,'YYYY')=%s
+                WHERE u.role='trainer'
+                GROUP BY u.id, u.full_name ORDER BY u.full_name
+            """, (stats_year,))
+            by_trainer = [{"trainer_id": r[0], "trainer_name": r[1], "joined": int(r[2]), "left": int(r[3])} for r in cur.fetchall()]
+
+        cur.close(); conn.close()
+        rows = list(months.values())
+        return ok({
+            "year": stats_year,
+            "months": rows,
+            "total_joined": sum(r["joined"] for r in rows),
+            "total_left": sum(r["left"] for r in rows),
+            "by_trainer": by_trainer,
+        })
+
+    stats_month = qs.get("stats_month")
+    if stats_month:
+        stats_trainer = qs.get("trainer_id") if role == "admin" else str(uid)
+        cond = "AND e.trainer_id=%s" if stats_trainer else ""
+        params = [stats_month] + ([stats_trainer] if stats_trainer else [])
+        cur.execute(f"""
+            SELECT e.event_type, e.student_name, e.event_date, e.reason, u.full_name
+            FROM {S}.student_events e
+            LEFT JOIN {S}.users u ON u.id=e.trainer_id
+            WHERE to_char(e.event_date,'YYYY-MM')=%s {cond}
+            ORDER BY e.event_date, e.student_name
+        """, params)
+        events = [{"type": r[0], "name": r[1], "date": r[2], "reason": r[3], "trainer_name": r[4]} for r in cur.fetchall()]
+
+        by_trainer = []
+        if role == "admin" and not stats_trainer:
+            cur.execute(f"""
+                SELECT u.id, u.full_name,
+                       COUNT(*) FILTER (WHERE e.event_type='joined'),
+                       COUNT(*) FILTER (WHERE e.event_type='left')
+                FROM {S}.users u
+                LEFT JOIN {S}.student_events e ON e.trainer_id=u.id AND to_char(e.event_date,'YYYY-MM')=%s
+                WHERE u.role='trainer'
+                GROUP BY u.id, u.full_name ORDER BY u.full_name
+            """, (stats_month,))
+            by_trainer = [{"trainer_id": r[0], "trainer_name": r[1], "joined": int(r[2]), "left": int(r[3])} for r in cur.fetchall()]
+
+        cur.close(); conn.close()
+        return ok({
+            "month": stats_month,
+            "joined": sum(1 for e in events if e["type"] == "joined"),
+            "left": sum(1 for e in events if e["type"] == "left"),
+            "events": events,
+            "by_trainer": by_trainer,
+        })
+
     month = qs.get("month")
     if not month:
         cur.close(); conn.close()

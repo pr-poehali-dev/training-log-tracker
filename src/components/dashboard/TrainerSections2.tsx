@@ -5,6 +5,7 @@ import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 
 import { PrimaryBtn, OutlineBtn, Loading, ErrBlock, BottomSheet, todayStr, ini, inputCls } from "./trainer-ui";
+import StudentMovement from "./StudentMovement";
 import PushToggle from "@/components/shared/PushToggle";
 
 // Типы доп. тренировок
@@ -409,6 +410,8 @@ export function ReportsSection({ user, month }: { user: AppUser; month: string }
           <Icon name="X" size={12} />Сбросить фильтры
         </button>
       )}
+
+      <StudentMovement month={month} cacheKey={String(user.id)} />
 
       {/* Статы */}
       <div className="grid grid-cols-3 gap-2">

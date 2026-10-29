@@ -135,6 +135,10 @@ def handler(event: dict, context) -> dict:
             bool(body.get("federation_contract", False)),
         ))
         row = cur.fetchone()
+        cur.execute(f"""
+            INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date)
+            VALUES (%s,%s,%s,'joined',(NOW() AT TIME ZONE 'Europe/Moscow')::date)
+        """, (row[0], uid, name))
         conn.commit()
         cur.close(); conn.close()
         return ok({"id": row[0], "created_at": str(row[1]), "message": "Ученик добавлен"})
@@ -200,10 +204,16 @@ def handler(event: dict, context) -> dict:
             if role != "admin":
                 cur.close(); conn.close()
                 return err("Удалять учеников навсегда может только администратор", 403)
-            cur.execute(f"SELECT id FROM {S}.students WHERE id=%s", (sid,))
-            if not cur.fetchone():
+            cur.execute(f"SELECT id, name, trainer_id, archived FROM {S}.students WHERE id=%s", (sid,))
+            del_row = cur.fetchone()
+            if not del_row:
                 cur.close(); conn.close()
                 return err("Ученик не найден", 404)
+            if not del_row[3]:
+                cur.execute(f"""
+                    INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date, reason)
+                    VALUES (%s,%s,%s,'left',(NOW() AT TIME ZONE 'Europe/Moscow')::date,'Удалён администратором')
+                """, (del_row[0], del_row[2], del_row[1]))
             cur.execute(f"DELETE FROM {S}.attendance WHERE student_id=%s", (sid,))
             cur.execute(f"DELETE FROM {S}.payments WHERE student_id=%s", (sid,))
             cur.execute(f"DELETE FROM {S}.personal_sessions WHERE student_id=%s", (sid,))
@@ -233,6 +243,12 @@ def handler(event: dict, context) -> dict:
         cur.execute(f"""
             UPDATE {S}.students SET archived=TRUE, archive_reason=%s, archived_at=NOW()
             WHERE id=%s
+        """, (reason, sid))
+
+        cur.execute(f"""
+            INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date, reason)
+            SELECT id, trainer_id, name, 'left', (NOW() AT TIME ZONE 'Europe/Moscow')::date, %s
+            FROM {S}.students WHERE id=%s
         """, (reason, sid))
 
         msg = f"Тренер {trainer_name} перевёл ученика «{student_name}» в архив. Причина: {reason}"

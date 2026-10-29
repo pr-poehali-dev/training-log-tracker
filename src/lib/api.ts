@@ -238,4 +238,12 @@ export const reportsApi = {
     const url = `${URLS.reports}?month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
     return offlineGet(url, `reports_${month}_${trainerId ?? "me"}`);
   },
+  statsMonth: (month: string, trainerId?: number) => {
+    const url = `${URLS.reports}?stats_month=${month}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `stats_month_${month}_${trainerId ?? "me"}`);
+  },
+  statsYear: (year: string, trainerId?: number) => {
+    const url = `${URLS.reports}?stats_year=${year}${trainerId ? `&trainer_id=${trainerId}` : ""}`;
+    return offlineGet(url, `stats_year_${year}_${trainerId ?? "me"}`);
+  },
 };
