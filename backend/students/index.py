@@ -278,6 +278,31 @@ def handler(event: dict, context) -> dict:
             cur.close(); conn.close()
             return ok({"updated": count, "message": f"Переименовано {count} учеников"})
 
+        if action == "restore":
+            if role != "admin":
+                cur.close(); conn.close()
+                return err("Вернуть из архива может только администратор", 403)
+            sid = qs.get("id")
+            if not sid:
+                cur.close(); conn.close()
+                return err("Нет id")
+            cur.execute(f"SELECT id, name, trainer_id FROM {S}.students WHERE id=%s AND archived=TRUE", (sid,))
+            row = cur.fetchone()
+            if not row:
+                cur.close(); conn.close()
+                return err("Ученик не найден в архиве", 404)
+            cur.execute(f"""
+                UPDATE {S}.students SET archived=FALSE, archive_reason=NULL, archived_at=NULL
+                WHERE id=%s
+            """, (sid,))
+            cur.execute(f"""
+                INSERT INTO {S}.student_events (student_id, trainer_id, student_name, event_type, event_date, reason)
+                VALUES (%s,%s,%s,'joined',(NOW() AT TIME ZONE 'Europe/Moscow')::date,'Возвращён из архива')
+            """, (row[0], row[2], row[1]))
+            conn.commit()
+            cur.close(); conn.close()
+            return ok({"message": "Ученик возвращён из архива"})
+
         if action == "set_leave":
             sid = qs.get("id")
             if not sid:

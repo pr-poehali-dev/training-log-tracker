@@ -1,16 +1,30 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentsApi } from "@/lib/api";
 import Icon from "@/components/ui/icon";
 import type { AppUser } from "@/pages/Index";
 import { Loading, inputCls, ini } from "./trainer-ui";
 
 export function ArchivedList({ user }: { user: AppUser }) {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [restoring, setRestoring] = useState<number | null>(null);
   const { data: archived = [], isLoading } = useQuery({
     queryKey: ["students-archived", user.id],
     queryFn: () => studentsApi.listArchived(),
   });
+
+  const restore = async (id: number, name: string) => {
+    if (!window.confirm(`Вернуть «${name}» из архива? Ученик снова станет активным и попадёт в статистику как новый.`)) return;
+    setRestoring(id);
+    try {
+      await studentsApi.restore(id);
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["students-archived"] });
+      qc.invalidateQueries({ queryKey: ["stats-month"] });
+      qc.invalidateQueries({ queryKey: ["stats-year"] });
+    } finally { setRestoring(null); }
+  };
 
   if (isLoading) return <Loading />;
 
@@ -71,8 +85,17 @@ export function ArchivedList({ user }: { user: AppUser }) {
                   )}
                 </div>
               </div>
-              <div className="text-[10px] text-gray-300 whitespace-nowrap flex-shrink-0">
-                {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <div className="text-[10px] text-gray-300 whitespace-nowrap">
+                  {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
+                </div>
+                {user.role === "admin" && (
+                  <button onClick={() => restore(s.id as number, s.name as string)} disabled={restoring === s.id}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold disabled:opacity-50"
+                    style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,28%)" }}>
+                    <Icon name="ArchiveRestore" size={12} />Вернуть
+                  </button>
+                )}
               </div>
             </div>
           </div>

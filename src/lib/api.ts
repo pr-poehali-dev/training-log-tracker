@@ -84,6 +84,9 @@ export const studentsApi = {
   remove: (id: number, reason: string) =>
     offlineMutate(`${URLS.students}?id=${id}`, "DELETE", { reason }, "students"),
 
+  restore: (id: number) =>
+    req(`${URLS.students}?action=restore&id=${id}`, { method: "PATCH", body: JSON.stringify({}) }),
+
   removePermanent: (id: number) =>
     req(`${URLS.students}?id=${id}&permanent=1`, { method: "DELETE" }),
 

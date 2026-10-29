@@ -58,6 +58,19 @@ export default function AdminDataTab() {
 
   const [toggling, setToggling] = useState<Set<string>>(new Set());
 
+  const restoreStudent = async (sid: number, name: string) => {
+    if (!window.confirm(`Вернуть «${name}» из архива? Ученик снова станет активным и попадёт в статистику как новый.`)) return;
+    const k = `r${sid}`;
+    setToggling(prev => new Set([...prev, k]));
+    try {
+      await studentsApi.restore(sid);
+      qc.invalidateQueries({ queryKey: ["students-admin"] });
+      qc.invalidateQueries({ queryKey: ["students-archived-admin"] });
+      qc.invalidateQueries({ queryKey: ["stats-month"] });
+      qc.invalidateQueries({ queryKey: ["stats-year"] });
+    } finally { setToggling(prev => { const n = new Set(prev); n.delete(k); return n; }); }
+  };
+
   const deleteStudent = async (sid: number, name: string) => {
     if (!window.confirm(`Удалить ученика «${name}» навсегда? Вместе с ним удалятся его посещения, оплаты и доп. тренировки. Отменить это нельзя.`)) return;
     const k = `d${sid}`;
@@ -413,6 +426,11 @@ export default function AdminDataTab() {
                         <div className="text-[10px] text-gray-300 whitespace-nowrap">
                           {s.archived_at ? new Date(s.archived_at as string).toLocaleDateString("ru") : ""}
                         </div>
+                        <button onClick={() => restoreStudent(s.id as number, s.name as string)} disabled={toggling.has(`r${s.id as number}`)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold disabled:opacity-50"
+                          style={{ background: "hsl(142,50%,93%)", color: "hsl(142,55%,28%)" }}>
+                          <Icon name="ArchiveRestore" size={12} />Вернуть
+                        </button>
                         <button onClick={() => deleteStudent(s.id as number, s.name as string)} disabled={toggling.has(`d${s.id as number}`)}
                           className="text-gray-300 hover:text-red-500 transition-colors p-1 disabled:opacity-40" title="Удалить навсегда">
                           <Icon name="Trash2" size={14} />
