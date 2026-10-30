@@ -50,7 +50,8 @@ export function PersonalSection({ user, month }: { user: AppUser; month: string 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = form.student_name.trim();
-    const match = allStudentsData.find(s => (s.name as string)?.toLowerCase() === name.toLowerCase());
+    const norm = (v: string) => v.replace(/\s+/g, " ").trim().toLowerCase();
+    const match = allStudentsData.find(s => norm((s.name as string) || "") === norm(name));
     if (!match) { setFormErr("Ученик с таким именем не найден. Проверьте написание — оно должно совпадать с карточкой ученика."); return; }
     setFormErr("");
     setSaving(true);
