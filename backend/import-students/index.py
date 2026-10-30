@@ -103,7 +103,7 @@ def handler(event: dict, context) -> dict:
         # Нормализуем ключи строки
         row = {k.strip().lower(): (v.strip() if v else "") for k, v in raw_row.items()}
 
-        name = row.get("имя", "").strip()
+        name = " ".join((row.get("имя") or "").split())
         if not name:
             skipped.append({"row": i, "reason": "Пустое имя"})
             continue

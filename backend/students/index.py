@@ -122,7 +122,7 @@ def handler(event: dict, context) -> dict:
         if role == "admin":
             cur.close(); conn.close()
             return err("Администратор не добавляет учеников")
-        name = body.get("name", "").strip()
+        name = " ".join((body.get("name") or "").split())
         if not name:
             cur.close(); conn.close()
             return err("Имя обязательно")
@@ -191,7 +191,7 @@ def handler(event: dict, context) -> dict:
               federation_contract=%s
             WHERE id=%s
         """, (
-            body.get("name"),
+            " ".join((body.get("name") or "").split()),
             body.get("hall") or None, body.get("hall2") or None,
             body.get("grp") or None, body.get("schedule") or None,
             body.get("phone") or None, body.get("iko") or None,
